@@ -1,8 +1,10 @@
 [project]
 name = "jotsu-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Versatile library for the Model Context Protocol (MCP), primarily designed for handling authentication."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
 requires-python = ">=3.12"
 dependencies = [
     "mcp>=1.9.1",
