@@ -38,6 +38,13 @@ class ServerMeta(pydantic.BaseModel):
     registration_endpoint: str | None
 
 
+async def log_request(request: httpx.Request):
+    logging.info(f'Request: {request.method} {request.url}')
+    logging.info(f'Headers: {request.headers}')
+    if request.content:
+        logging.info(f'Body: {request.content.decode()}')
+
+
 class OAuth2AuthorizationCodeClient:
     """Client for the OAuth2.1 flow required by MCP."""
 
@@ -74,7 +81,7 @@ class OAuth2AuthorizationCodeClient:
     ) -> OAuthToken:
         """Call the authorization endpoint to obtain an access token."""
 
-        async with httpx.AsyncClient() as httpx_client:
+        async with httpx.AsyncClient(event_hooks={"request": [log_request]}) as httpx_client:
             req = AuthorizationCodeRequest(
                 grant_type='authorization_code',
                 code=code,
@@ -84,7 +91,11 @@ class OAuth2AuthorizationCodeClient:
             )
             if code_verifier:
                 req.code_verifier = code_verifier
-            res = await httpx_client.post(self.token_endpoint, data=req.model_dump(mode='json', exclude_unset=True))
+            res = await httpx_client.post(
+                self.token_endpoint,
+                data=req.model_dump(mode='json', exclude_unset=True),
+                auth=(self.client_id, self.client_secret)
+            )
             if res.status_code != 200:
                 logger.warning('%d %s: %s', res.status_code, res.reason_phrase, res.text)
             res.raise_for_status()
@@ -100,7 +111,7 @@ class OAuth2AuthorizationCodeClient:
             refresh_token: RefreshToken,
             scopes: list[str],
     ) -> OAuthToken | None:
-        async with httpx.AsyncClient() as httpx_client:
+        async with httpx.AsyncClient(event_hooks={"request": [log_request]}) as httpx_client:
             req = RefreshTokenRequest(
                 grant_type='refresh_token',
                 refresh_token=refresh_token.token,
@@ -128,7 +139,7 @@ class OAuth2AuthorizationCodeClient:
         url = utils.server_url('/.well-known/oauth-authorization-server', url=base_url)
         logger.debug('Trying server metadata discovery at %s', url)
         try:
-            async with httpx.AsyncClient() as httpx_client:
+            async with httpx.AsyncClient(event_hooks={"request": [log_request]}) as httpx_client:
                 res = await httpx_client.get(url)
                 res.raise_for_status()
                 logger.info('Server metadata found: %s', res.text)
