@@ -16,7 +16,11 @@ coverage:
 	PYTHONPATH=. pytest --cov=jotsu --cov-config=.coveragerc --cov-report=term-missing --cov-fail-under=100 -x tests/
 .PHONY: coverage
 
-build:
+clean:
+	rm -f dist/*
+.PHONY: clean
+
+build: clean
 	python3 -m build
 .PHONY: build
 
