@@ -134,7 +134,7 @@ class OAuth2AuthorizationCodeClient:
                 return ServerMeta(**res.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.info('Server metadata discovery not found, using default endpoints.', url)
+                logger.info('Server metadata discovery not found, using default endpoints')
                 return ServerMeta(
                     authorization_endpoint=utils.server_url('/authorize', url=base_url),
                     token_endpoint=utils.server_url('/token', url=base_url),
