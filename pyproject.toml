@@ -1,6 +1,6 @@
 [project]
 name = "jotsu-mcp"
-version = "0.1.2"
+version = "0.2.0"
 description = "Versatile library for the Model Context Protocol (MCP), primarily designed for handling authentication."
 readme = "README.md"
 license = "MIT"
