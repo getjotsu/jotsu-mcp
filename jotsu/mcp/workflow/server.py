@@ -7,6 +7,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import Resource
 
 from jotsu.mcp.common import Workflow
+from jotsu.mcp.local import LocalMCPClient
 from jotsu.mcp.client.client import MCPClient, MCPClientSession
 
 
@@ -41,7 +42,7 @@ class WorkflowEngine(FastMCP):
             client: typing.Optional[MCPClient] = None, **kwargs
     ):
         self._workflows = [workflows] if isinstance(workflows, Workflow) else workflows
-        self._client = client if client else MCPClient()
+        self._client = client if client else LocalMCPClient()
 
         super().__init__(*args, **kwargs)
         self.add_tool(self.run_workflow, name='workflow')

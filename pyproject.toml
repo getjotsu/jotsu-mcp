@@ -50,7 +50,7 @@ addopts = "-ra"
 [tool.coverage.run]
 omit = [
     "*/cli/*",
-    "jotsu/mcp/client/localserver.py",
+    "jotsu/mcp/local/*",
     "jotsu/mcp/workflow/__main__.py",
     "jotsu/mcp/server/*"  # FIXME
 ]
