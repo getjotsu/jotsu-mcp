@@ -13,7 +13,7 @@ test:
 .PHONY: test
 
 coverage:
-	PYTHONPATH=. pytest --cov=jotsu --cov-config=.coveragerc --cov-report=term-missing --cov-fail-under=100 -x tests/
+	PYTHONPATH=. pytest --cov=jotsu --cov-report=term-missing --cov-fail-under=100 -x tests/
 .PHONY: coverage
 
 clean:

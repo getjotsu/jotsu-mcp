@@ -6,7 +6,7 @@ import httpx
 from mcp.server.auth.provider import RefreshToken
 from mcp.shared.auth import OAuthToken, OAuthClientInformationFull
 
-from jotsu.mcp.client.oauth import OAuth2AuthorizationCodeClient
+from jotsu.mcp.client.oauth import OAuth2AuthorizationCodeClient, log_request
 
 
 @pytest.fixture(scope='function', name='oauth_client')
@@ -171,3 +171,9 @@ async def test_oauth_dynamic_client_registration(mocker):
     )
     assert res
     post.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_oauth_log_request():
+    req = httpx.Request(method='GET', url='https://www.example.com', content=b'XXX')
+    assert await log_request(req) is None

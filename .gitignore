@@ -13,3 +13,6 @@ wheels/
 
 # IDE
 .idea/
+
+# Data
+*.json
