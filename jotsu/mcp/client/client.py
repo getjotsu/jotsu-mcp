@@ -56,9 +56,10 @@ class MCPClient:
     @asynccontextmanager
     async def session(self, server: WorkflowServer, headers: httpx.Headers | None = None):
         headers = headers if headers else httpx.Headers()
-        access_token = await self.credentials.get_access_token(server.id)
-        if access_token:
-            headers['Authorization'] = f'Bearer {access_token}'
+        if 'Authorization' not in headers:
+            access_token = await self.credentials.get_access_token(server.id)
+            if access_token:
+                headers['Authorization'] = f'Bearer {access_token}'
 
         try:
             async with self._connect(server, headers) as session:
