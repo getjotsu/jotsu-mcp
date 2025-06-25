@@ -49,7 +49,8 @@ class OAuth2AuthorizationCodeClient:
     """Client for the OAuth2.1 flow required by MCP."""
 
     def __init__(
-            self, *, authorize_endpoint: str, token_endpoint: str, scope: str, client_id: str, client_secret: str,
+            self, *,
+            authorize_endpoint: str, token_endpoint: str, scope: str, client_id: str, client_secret: str | None = None,
             **_kwargs  # ignored
     ):
         self.authorize_endpoint = authorize_endpoint
