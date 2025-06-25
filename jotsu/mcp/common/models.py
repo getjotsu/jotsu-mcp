@@ -35,6 +35,12 @@ class WorkflowServer(pydantic.BaseModel):
     url: pydantic.AnyHttpUrl
 
 
+class WorkflowServerFull(WorkflowServer):
+    tools: typing.List[Tool]
+    resources: typing.List[Resource]
+    prompts: typing.List[Prompt]
+
+
 Slug = pydantic.constr(pattern=r'^[a-z0-9\-]+$')
 
 
@@ -44,9 +50,3 @@ class Workflow(pydantic.BaseModel):
     description: str | None = None
     event: WorkflowEvent | None = None
     servers: typing.List[WorkflowServer]
-
-
-class WorkflowServerFull(WorkflowServer):
-    tools: typing.List[Tool]
-    resources: typing.List[Resource]
-    prompts: typing.List[Prompt]

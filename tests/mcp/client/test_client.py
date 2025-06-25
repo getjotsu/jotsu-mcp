@@ -42,7 +42,7 @@ async def test_client_auth(mocker):
         if not hasattr(mock_connect, 'called'):
             setattr(mock_connect, 'called', True)
             raise e
-        obj = mocker.Mock(return_value=True)
+        obj = mocker.Mock()
         obj.call_tool = mocker.AsyncMock(return_value=True)
         yield obj
 

@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
 import httpx
 
@@ -44,9 +45,12 @@ class MCPClient:
         return self._credentials
 
     @asynccontextmanager
-    async def _connect(self, server: WorkflowServer, headers: httpx.Headers):
+    async def _connect(
+            self, server: WorkflowServer, headers: httpx.Headers, timeout: timedelta = timedelta(seconds=30)
+    ):
         async with streamablehttp_client(
                 url=str(server.url),
+                timeout=timeout,
                 headers=headers,
         ) as (read_stream, write_stream, _):
             async with MCPClientSession(read_stream, write_stream, server=server, client=self) as session:
@@ -54,7 +58,10 @@ class MCPClient:
                 yield session
 
     @asynccontextmanager
-    async def session(self, server: WorkflowServer, headers: httpx.Headers | None = None):
+    async def session(
+            self, server: WorkflowServer, headers: httpx.Headers | None = None,
+            *, timeout: timedelta = timedelta(seconds=30)
+    ):
         headers = headers if headers else httpx.Headers()
         if 'Authorization' not in headers:
             access_token = await self.credentials.get_access_token(server.id)
@@ -62,7 +69,7 @@ class MCPClient:
                 headers['Authorization'] = f'Bearer {access_token}'
 
         try:
-            async with self._connect(server, headers) as session:
+            async with self._connect(server, headers, timeout=timeout) as session:
                 yield session
         except BaseExceptionGroup as e:
             if not utils.is_httpx_401_exception(e):
