@@ -36,6 +36,7 @@ dev = [
     "pytest-cov>=6.1.1",
     "pytest-mock>=3.14.1",
     "setuptools>=80.9.0",
+    "pydantic-to-typescript>=2.0.0"
 ]
 
 [tool.setuptools.packages.find]
