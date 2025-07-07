@@ -12,7 +12,7 @@ from jotsu.mcp.client.oauth import OAuth2AuthorizationCodeClient, log_request
 @pytest.fixture(scope='function', name='oauth_client')
 def oauth_client_fixture():
     return OAuth2AuthorizationCodeClient(
-        authorize_endpoint='https://example.com/authorize',
+        authorization_endpoint='https://example.com/authorize',
         token_endpoint='https://example.com/token',
         scope='scope',
         client_id='client_id',

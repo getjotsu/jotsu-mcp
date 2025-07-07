@@ -50,10 +50,12 @@ class OAuth2AuthorizationCodeClient:
 
     def __init__(
             self, *,
-            authorize_endpoint: str, token_endpoint: str, scope: str, client_id: str, client_secret: str | None = None,
+            authorization_endpoint: str, token_endpoint: str,
+            scope: str,
+            client_id: str, client_secret: str | None = None,
             **_kwargs  # ignored
     ):
-        self.authorize_endpoint = authorize_endpoint
+        self.authorization_endpoint = authorization_endpoint
         self.token_endpoint = token_endpoint
         self.scope = scope
         self.client_id = client_id
@@ -73,7 +75,7 @@ class OAuth2AuthorizationCodeClient:
             'scope': self.scope,
             'state': state
         }
-        url = f'{self.authorize_endpoint}?{urlencode(params)}'
+        url = f'{self.authorization_endpoint}?{urlencode(params)}'
         params['url'] = url
         return AuthorizeInfo(**params)
 

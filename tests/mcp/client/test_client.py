@@ -91,7 +91,7 @@ async def test_refresh_token(mocker):
 
     credentials = {
         'token': 'xxx', 'client_id': '123', 'scopes': [],
-        'authorize_endpoint': 'https://example.com/authorize',
+        'authorization_endpoint': 'https://example.com/authorize',
         'token_endpoint': 'https://example.com./tokens',
         'scope': '',
         'client_secret': 'xyz'
@@ -113,7 +113,7 @@ async def test_refresh_failed(mocker):
 
     credentials = {
         'token': 'xxx', 'client_id': '123', 'scopes': [],
-        'authorize_endpoint': 'https://example.com/authorize',
+        'authorization_endpoint': 'https://example.com/authorize',
         'token_endpoint': 'https://example.com./tokens',
         'scope': '',
         'client_secret': 'xyz'
