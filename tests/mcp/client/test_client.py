@@ -65,7 +65,7 @@ async def test_client_error(mocker):
     e = BaseExceptionGroup('error', [httpx.HTTPStatusError('xxx', request=req, response=res)])
 
     @asynccontextmanager
-    async def mock_connect(*args, **_kwargs):
+    async def mock_connect(*_args, **_kwargs):
         raise e
         yield  # noqa
 
@@ -90,10 +90,10 @@ async def test_refresh_token(mocker):
     )
 
     credentials = {
-        'token': 'xxx', 'client_id': '123', 'scopes': [],
+        'refresh_token': 'xxx', 'client_id': '123',
         'authorization_endpoint': 'https://example.com/authorize',
         'token_endpoint': 'https://example.com./tokens',
-        'scope': '',
+        'scope': 'doc.read, doc.write',
         'client_secret': 'xyz'
     }
 
@@ -112,7 +112,7 @@ async def test_refresh_failed(mocker):
     )
 
     credentials = {
-        'token': 'xxx', 'client_id': '123', 'scopes': [],
+        'refresh_token': 'xxx', 'client_id': '123',
         'authorization_endpoint': 'https://example.com/authorize',
         'token_endpoint': 'https://example.com./tokens',
         'scope': '',

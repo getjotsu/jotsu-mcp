@@ -85,14 +85,20 @@ class MCPClient:
     async def token_refresh(self, server: WorkflowServer, credentials: dict) -> str | None:
         """ Try to use our refresh token to get a new access token. """
         oauth = OAuth2AuthorizationCodeClient(**credentials)
-
-        refresh_token = RefreshToken(**credentials)
-        token = await oauth.exchange_refresh_token(refresh_token=refresh_token, scopes=[])
+        token = credentials.get('refresh_token')
         if token:
-            # Keep values not included in the token response, like the endpoints.
-            credentials = {**credentials, **token.model_dump(mode='json')}
-            await self.credentials.store(server.id, credentials)
-            return token.access_token
+            scopes = []
+            scope = credentials.get('scope')
+            if scope:
+                scopes = [s.strip() for s in scope.split(',')]
+
+            refresh_token = RefreshToken(**credentials, token=token, scopes=scopes)
+            oauth_token = await oauth.exchange_refresh_token(refresh_token=refresh_token, scopes=[])
+            if oauth_token:
+                # Keep values not included in the token response, like the endpoints.
+                credentials = {**credentials, **oauth_token.model_dump(mode='json')}
+                await self.credentials.store(server.id, credentials)
+                return oauth_token.access_token
         return None
 
     async def authenticate(self, server: WorkflowServer) -> str | None:

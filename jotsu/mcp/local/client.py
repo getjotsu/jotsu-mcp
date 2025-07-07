@@ -76,7 +76,7 @@ class LocalMCPClient(MCPClient):
 
         client = OAuth2AuthorizationCodeClient(
             **client_info.model_dump(mode='json'),
-            authorize_endpoint=server_metadata.authorization_endpoint,
+            authorization_endpoint=server_metadata.authorization_endpoint,
             token_endpoint=server_metadata.token_endpoint
         )
         token = await client.exchange_authorization_code(
