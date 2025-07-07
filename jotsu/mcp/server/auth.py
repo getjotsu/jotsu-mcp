@@ -119,7 +119,8 @@ class ThirdPartyAuthServerProvider(OAuthAuthorizationServerProvider):
 
         try:
             payload = jwt.decode(refresh_token, self.secret_key, algorithms=['HS256'])
-        except jwt.exceptions.DecodeError as e:
+        except jwt.exceptions.InvalidTokenError as e:
+            # InvalidTokenError includes DecodeError and ExpiredSignatureError
             logger.info('Invalid refresh JWT: %s', str(e))
             return None
 
@@ -145,7 +146,8 @@ class ThirdPartyAuthServerProvider(OAuthAuthorizationServerProvider):
 
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=['HS256'])
-        except jwt.exceptions.DecodeError as e:
+        except jwt.exceptions.InvalidTokenError as e:
+            # InvalidTokenError includes DecodeError and ExpiredSignatureError
             logger.info('Invalid access JWT: %s', str(e))
             return None
 
