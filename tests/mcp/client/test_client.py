@@ -7,8 +7,9 @@ import httpx
 from mcp.shared.auth import OAuthToken
 
 from jotsu.mcp.client import MCPClient
+from jotsu.mcp.client.client import MCPClientSession, split_scopes
 from jotsu.mcp.client.credentials import CredentialsManager
-from jotsu.mcp.common import WorkflowServer
+from jotsu.mcp.types import WorkflowServer
 
 
 class MockCredentialsManager(CredentialsManager):
@@ -22,10 +23,9 @@ class MockCredentialsManager(CredentialsManager):
 async def test_client():
     server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
 
-    credentials_manager = MockCredentialsManager()
-
-    client = MCPClient(credentials_manager=credentials_manager)
+    client = MCPClient()
     async with client.session(server) as session:
+        assert session.server
         result = await session.call_tool('greet', {'name': 'World'})
         assert result.isError is False
 
@@ -59,6 +59,7 @@ async def test_client_auth(mocker):
     authenticate.assert_called_once()
 
 
+@pytest.mark.asyncio
 async def test_client_error(mocker):
     req = httpx.Request('GET', 'https://example.com')
     res = httpx.Response(500)
@@ -79,6 +80,7 @@ async def test_client_error(mocker):
             ...
 
 
+@pytest.mark.asyncio
 async def test_refresh_token(mocker):
     token = OAuthToken(access_token='xxx')
 
@@ -93,7 +95,7 @@ async def test_refresh_token(mocker):
         'refresh_token': 'xxx', 'client_id': '123',
         'authorization_endpoint': 'https://example.com/authorize',
         'token_endpoint': 'https://example.com./tokens',
-        'scope': 'doc.read, doc.write',
+        'scope': 'doc.read doc.write',
         'client_secret': 'xyz'
     }
 
@@ -103,6 +105,7 @@ async def test_refresh_token(mocker):
     exchange_refresh_token.assert_called_once()
 
 
+@pytest.mark.asyncio
 async def test_refresh_failed(mocker):
     credentials_manager = MockCredentialsManager()
     client = MCPClient(credentials_manager=credentials_manager)
@@ -125,8 +128,49 @@ async def test_refresh_failed(mocker):
     exchange_refresh_token.assert_called_once()
 
 
+@pytest.mark.asyncio
 async def test_client_authenticate():
     credentials_manager = MockCredentialsManager()
     server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
     client = MCPClient(credentials_manager=credentials_manager)
     assert await client.authenticate(server) is None
+
+
+@pytest.mark.asyncio
+async def test_client_session(mocker):
+    server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
+    session = MCPClientSession(
+        read_stream=mocker.Mock(), write_stream=mocker.Mock(), client=mocker.Mock(), server=server
+    )
+
+    list_tools = mocker.patch.object(session, 'list_tools', new_callable=mocker.AsyncMock)
+    list_tools.return_value = mocker.Mock()
+    list_tools.return_value.tools = []
+
+    list_resources = mocker.patch.object(session, 'list_resources', new_callable=mocker.AsyncMock)
+    list_resources.return_value = mocker.Mock()
+    list_resources.return_value.resources = []
+
+    list_prompts = mocker.patch.object(session, 'list_prompts', new_callable=mocker.AsyncMock)
+    list_prompts.return_value = mocker.Mock()
+    list_prompts.return_value.prompts = []
+
+    server = await session.load()
+    assert server
+
+    list_tools.assert_called_once()
+    list_resources.assert_called_once()
+    list_prompts.assert_called_once()
+
+
+def test_split_scopes():
+    scopes = split_scopes('a      b   c')
+    assert scopes == ['a', 'b', 'c']
+
+    scopes = split_scopes('ab c')
+    assert scopes == ['ab', 'c']
+
+    scopes = split_scopes('a')
+    assert scopes == ['a']
+
+    assert split_scopes('') == []

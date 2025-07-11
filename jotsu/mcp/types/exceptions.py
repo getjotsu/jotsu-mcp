@@ -1,0 +1,3 @@
+class JotsuException(Exception):
+    """ Base class for exceptions in this library. """
+    ...

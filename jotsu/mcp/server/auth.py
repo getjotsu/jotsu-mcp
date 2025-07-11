@@ -27,7 +27,8 @@ class ThirdPartyAuthServerProvider(OAuthAuthorizationServerProvider):
             self, *,
             issuer_url: str,
             cache: AsyncCache,
-            oauth: OAuth2AuthorizationCodeClient, secret_key: str,
+            oauth: OAuth2AuthorizationCodeClient,
+            secret_key: str,
             client_manager: AsyncClientManager,
     ):
         self.issuer_url = issuer_url  # only needed for the intermediate redirect.
@@ -44,6 +45,7 @@ class ThirdPartyAuthServerProvider(OAuthAuthorizationServerProvider):
             logger.debug('Registered client: %s', client_info.client_id)
         except Exception as e:  # noqa
             logger.exception('Client registration failed.')
+            raise e
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
         return await self.client_manager.get_client(client_id)
@@ -184,7 +186,7 @@ class ThirdPartyAuthServerProvider(OAuthAuthorizationServerProvider):
         access_token = self._generate_jwt(
             AccessToken(
                 token=third_party_token.access_token,
-                expires_at=int(time.time() + third_party_token.expires_in),
+                expires_at=int(time.time() + third_party_token.expires_in) if third_party_token.expires_in else None,
                 client_id=client.client_id,
                 scopes=[client.scope] if client.scope else []
             )
@@ -192,11 +194,11 @@ class ThirdPartyAuthServerProvider(OAuthAuthorizationServerProvider):
         refresh_token = self._generate_jwt(
             RefreshToken(
                 token=third_party_token.refresh_token,
-                expires_at=int(time.time() + third_party_token.expires_in),
+                expires_at=None,  # no expires_at, just have the client try it.
                 client_id=client.client_id,
                 scopes=[client.scope] if client.scope else []
             )
-        )
+        ) if third_party_token.refresh_token else None
 
         logger.debug('access_token: %s, expires_in=%s', access_token, third_party_token.expires_in)
 

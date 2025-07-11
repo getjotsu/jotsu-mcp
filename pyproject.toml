@@ -7,10 +7,12 @@ license = "MIT"
 license-files = ["LICEN[CS]E*"]
 requires-python = ">=3.12"
 dependencies = [
+    "jsonata-python>=0.5.3",
     "mcp>=1.9.1",
     "pkce>=1.0.3",
     "pydantic>=2.6.1",
     "pyjwt>=2.10.1",
+    "asteval>=1.0.6"
 ]
 
 [project.scripts]
@@ -24,7 +26,13 @@ build-backend = "setuptools.build_meta"
 cli = [
     "click>=8.2.1",
     "aiofiles==24.1.0",
-    "pkce==1.0.3"
+    "pkce>=1.0.3",
+    "python-ulid>=3.0.0",
+    "python-dotenv>=1.1.0"
+]
+anthropic = [
+    "anthropic>=0.57.1",
+    "pybars3>=0.9.7",
 ]
 
 [dependency-groups]
@@ -52,8 +60,7 @@ addopts = "-ra"
 omit = [
     "*/cli/*",
     "jotsu/mcp/local/*",
-    "jotsu/mcp/workflow/__main__.py",
-    "jotsu/mcp/server/*"  # FIXME
+    "jotsu/mcp/workflow/__main__.py"
 ]
 
 [tool.coverage.report]

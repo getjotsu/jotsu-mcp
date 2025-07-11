@@ -15,4 +15,7 @@ wheels/
 .idea/
 
 # Data
-*.json
+/*.json
+
+# Env files
+.env

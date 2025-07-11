@@ -1,4 +1,6 @@
 import logging
+import re
+import typing
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
@@ -8,12 +10,18 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.server.auth.provider import RefreshToken
 
-from jotsu.mcp.common import WorkflowServer, WorkflowServerFull
+from jotsu.mcp.types import WorkflowServer
+from jotsu.mcp.types.models import WorkflowServerFull
+
 from . import utils
-from .credentials import CredentialsManager
+from .credentials import CredentialsManager, MemoryCredentialsManager
 from .oauth import OAuth2AuthorizationCodeClient
 
 logger = logging.getLogger(__name__)
+
+
+def split_scopes(scope: str) -> typing.List[str]:
+    return [s.strip() for s in re.split(r'\s+', scope) if s]
 
 
 class MCPClientSession(ClientSession):
@@ -37,8 +45,8 @@ class MCPClientSession(ClientSession):
 
 
 class MCPClient:
-    def __init__(self, *, credentials_manager: CredentialsManager):
-        self._credentials = credentials_manager
+    def __init__(self, *, credentials_manager: CredentialsManager | None = None):
+        self._credentials = credentials_manager if credentials_manager else MemoryCredentialsManager()
 
     @property
     def credentials(self):
@@ -90,7 +98,7 @@ class MCPClient:
             scopes = []
             scope = credentials.get('scope')
             if scope:
-                scopes = [s.strip() for s in scope.split(',')]
+                scopes = split_scopes(scope)  # multiple scopes are delimited by spaces.
 
             refresh_token = RefreshToken(**credentials, token=token, scopes=scopes)
             oauth_token = await oauth.exchange_refresh_token(refresh_token=refresh_token, scopes=[])

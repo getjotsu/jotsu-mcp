@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
     from http.server import BaseHTTPRequestHandler
 
 import pkce
-from jotsu.mcp.common import WorkflowServer
+from jotsu.mcp.types import WorkflowServer
 from jotsu.mcp.client import MCPClient, OAuth2AuthorizationCodeClient, utils
 
 from . import localserver
