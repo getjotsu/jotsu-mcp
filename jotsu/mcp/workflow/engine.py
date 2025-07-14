@@ -9,10 +9,10 @@ from mcp.types import Resource
 from jotsu.mcp.types import Workflow
 from jotsu.mcp.local import LocalMCPClient
 from jotsu.mcp.client.client import MCPClient
+from jotsu.mcp.types.models import WorkflowNode, WorkflowModelUsage, WorkflowData
 
 from .handler import WorkflowHandler, WorkflowHandlerResult
 from .sessions import WorkflowSessionManager
-from ..types.models import WorkflowNode, WorkflowModelUsage
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ class WorkflowAction(pydantic.BaseModel):
 class WorkflowActionStart(WorkflowAction):
     action: typing.Literal['workflow-start'] = 'workflow-start'
     workflow: _WorkflowRef
+    data: WorkflowData = None
 
 
 class WorkflowActionEnd(WorkflowAction):
@@ -57,7 +58,7 @@ class WorkflowActionEnd(WorkflowAction):
 class WorkflowActionNodeStart(WorkflowAction):
     action: typing.Literal['node-start'] = 'node-start'
     node: _WorkflowNodeRef
-    data: dict
+    data: WorkflowData
 
 
 class WorkflowActionNodeEnd(WorkflowAction):
@@ -152,15 +153,15 @@ class WorkflowEngine(FastMCP):
             logger.error('Workflow not found: %s', name)
             raise ValueError(f'Workflow not found: {name}')
 
-        ref = _WorkflowRef(id=workflow.id, name=workflow.name or workflow.id)
-        yield WorkflowActionStart(workflow=ref, timestamp=start).model_dump()
-
         workflow_name = f'{workflow.name} [{workflow.id}]' if workflow.name != workflow.id else workflow.name
         logger.info("Running workflow '%s'.", workflow_name)
 
         payload = workflow.data if workflow.data else {}
         if data:
             payload.update(data)
+
+        ref = _WorkflowRef(id=workflow.id, name=workflow.name or workflow.id)
+        yield WorkflowActionStart(workflow=ref, timestamp=start, data=payload).model_dump()
 
         nodes = {node.id: node for node in workflow.nodes}
         node = nodes.get(workflow.start_node_id)
