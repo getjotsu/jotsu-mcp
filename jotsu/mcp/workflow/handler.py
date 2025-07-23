@@ -213,7 +213,7 @@ class WorkflowHandler:
     def _get_session(server_id: str, *, sessions: WorkflowSessionManager) -> MCPClientSession:
         session = sessions.get(server_id)
         if not session:
-            raise JotsuException('Server not found: %s', server_id)
+            raise JotsuException(f'Server not found: {server_id}')
         return session
 
     @staticmethod

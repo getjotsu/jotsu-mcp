@@ -85,3 +85,17 @@ async def test_engine_workflow_not_found(mocker):
         async for _ in engine.run_workflow('test-workflow'):
             ...
     logger_error.assert_called_once()
+
+
+async def test_engine_workflow_failed(mocker):
+
+    workflow = Workflow(id='test-workflow', name='Test', start_node_id='1')
+    workflow.nodes.append(WorkflowNode(id='1', name='other', type='other'))
+
+    mocker.patch(__name__ + '.MockHandler.handle_other', side_effect=Exception)
+    engine = WorkflowEngine([workflow], handler_cls=MockHandler)
+
+    trace = [x async for x in engine.run_workflow('test-workflow', data={'foo': 'bar'})]
+    assert len(trace) == 4   # node start/error + workflow start/failed
+    assert trace[2]['action'] == 'node-error'
+    assert trace[3]['action'] == 'workflow-failed'

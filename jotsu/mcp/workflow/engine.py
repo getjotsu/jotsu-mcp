@@ -1,6 +1,8 @@
 import logging
+import sys
 import time
 import typing
+import traceback
 
 import pydantic
 from mcp.server.fastmcp import FastMCP
@@ -30,6 +32,13 @@ class _WorkflowNodeRef(_WorkflowRef):
         return cls(id=node.id, name=node.name, type=node.type)
 
 
+class _WorkflowTracebackFrame(pydantic.BaseModel):
+    filename: str
+    lineno: int
+    func_name: str
+    text: str
+
+
 class WorkflowAction(pydantic.BaseModel):
     action: str
     timestamp: float = 0
@@ -55,6 +64,13 @@ class WorkflowActionEnd(WorkflowAction):
     usage: list[WorkflowModelUsage]
 
 
+class WorkflowActionFailed(WorkflowAction):
+    action: typing.Literal['workflow-failed'] = 'workflow-failed'
+    workflow: _WorkflowRef
+    duration: float
+    usage: list[WorkflowModelUsage]
+
+
 class WorkflowActionNodeStart(WorkflowAction):
     action: typing.Literal['node-start'] = 'node-start'
     node: _WorkflowNodeRef
@@ -65,6 +81,14 @@ class WorkflowActionNodeEnd(WorkflowAction):
     action: typing.Literal['node-start'] = 'node-end'
     node: _WorkflowNodeRef
     results: typing.List[WorkflowHandlerResult]
+
+
+class WorkflowActionNodeError(WorkflowAction):
+    action: typing.Literal['node-start'] = 'node-error'
+    node: _WorkflowNodeRef
+    message: str
+    exc_type: str
+    traceback: typing.List[_WorkflowTracebackFrame]
 
 
 class WorkflowActionDefault(WorkflowAction):
@@ -113,6 +137,13 @@ class WorkflowEngine(FastMCP):
         return None
 
     @staticmethod
+    def _get_tb(tb):
+        for frame in traceback.extract_tb(tb, 64):
+            yield _WorkflowTracebackFrame(
+                filename=frame.filename, lineno=frame.lineno, func_name=frame.name, text=frame.line
+            )
+
+    @staticmethod
     def _results(
             node: WorkflowNode, values: dict | typing.List[WorkflowHandlerResult]
     ) -> typing.List[WorkflowHandlerResult]:
@@ -129,10 +160,20 @@ class WorkflowEngine(FastMCP):
         if method:
             yield WorkflowActionNodeStart(node=ref, data=data).model_dump()
 
-            result = await method(data, workflow=workflow, node=node, sessions=sessions, usage=usage)
-            results: typing.List[WorkflowHandlerResult] = self._results(node, result)
+            try:
+                result = await method(data, workflow=workflow, node=node, sessions=sessions, usage=usage)
+                results: typing.List[WorkflowHandlerResult] = self._results(node, result)
+                yield WorkflowActionNodeEnd(node=ref, results=results).model_dump()
+            except Exception as e:  # noqa
+                logger.exception('handler exception')
 
-            yield WorkflowActionNodeEnd(node=ref, results=results).model_dump()
+                exc_type, _, tb = sys.exc_info()
+                yield WorkflowActionNodeError(
+                    node=ref, message=str(e), exc_type=exc_type.__name__, traceback=list(self._get_tb(tb))
+                ).model_dump()
+
+                raise e
+
         else:
             yield WorkflowActionDefault(node=ref, data=data).model_dump()
             results: typing.List[WorkflowHandlerResult] = self._results(node, data)
@@ -182,13 +223,21 @@ class WorkflowEngine(FastMCP):
             for session in sessions.values():  # type: 'MCPClientSession'
                 await session.load()
 
-            async for status in self._run_workflow_node(
-                    workflow, node, data=payload, nodes=nodes, sessions=sessions, usage=usage
-            ):
-                yield status
+            success = True
+            try:
+                async for status in self._run_workflow_node(
+                        workflow, node, data=payload, nodes=nodes, sessions=sessions, usage=usage
+                ):
+                    yield status
+            except:  # noqa
+                success = False
 
             end = time.perf_counter()
             duration = end - start
 
-            yield WorkflowActionEnd(workflow=ref, timestamp=end, duration=duration, usage=usage).model_dump()
-            logger.info("Workflow '%s' completed successfully in %s seconds.", workflow_name, f'{duration:.4f}')
+            if success:
+                yield WorkflowActionEnd(workflow=ref, timestamp=end, duration=duration, usage=usage).model_dump()
+                logger.info("Workflow '%s' completed successfully in %s seconds.", workflow_name, f'{duration:.4f}')
+            else:
+                yield WorkflowActionFailed(workflow=ref, timestamp=end, duration=duration, usage=usage).model_dump()
+                logger.info("Workflow '%s' failed in %s seconds.", workflow_name, f'{duration:.4f}')
