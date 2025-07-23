@@ -1,7 +1,7 @@
 [project]
 name = "jotsu-mcp"
-version = "0.5.1"
-description = "Versatile library for the Model Context Protocol (MCP), primarily designed for handling authentication."
+version = "0.6.0"
+description = "Automatation for the Model Context Protocol (MCP)."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
@@ -59,7 +59,7 @@ addopts = "-ra"
 [tool.coverage.run]
 omit = [
     "*/cli/*",
-    "jotsu/mcp/local/*",
+    "jotsu/mcp/local/*",   # FIXME
     "jotsu/mcp/workflow/__main__.py"
 ]
 
