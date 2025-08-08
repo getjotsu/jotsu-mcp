@@ -8,6 +8,7 @@ license-files = ["LICEN[CS]E*"]
 requires-python = ">=3.12"
 dependencies = [
     "jsonata-python>=0.5.3",
+    "jsonschema>=4.25.0",
     "mcp>=1.9.1",
     "pkce>=1.0.3",
     "pydantic>=2.6.1",
@@ -35,7 +36,6 @@ anthropic = [
     "pybars3>=0.9.7",
 ]
 
-[dependency-groups]
 dev = [
     "flake8>=7.2.0",
     "flake8-quotes>=3.4.0",

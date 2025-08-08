@@ -5,6 +5,7 @@ import typing
 import traceback
 
 import pydantic
+import jsonschema
 from mcp.server.fastmcp import FastMCP
 from mcp.types import Resource
 
@@ -57,6 +58,14 @@ class WorkflowActionStart(WorkflowAction):
     data: WorkflowData = None
 
 
+class WorkflowActionSchemaError(WorkflowAction):
+    action: typing.Literal['schema-error'] = 'workflow-schema-error'
+    workflow: _WorkflowRef
+    message: str
+    exc_type: str
+    traceback: typing.List[_WorkflowTracebackFrame]
+
+
 class WorkflowActionEnd(WorkflowAction):
     action: typing.Literal['workflow-end'] = 'workflow-end'
     workflow: _WorkflowRef
@@ -78,13 +87,13 @@ class WorkflowActionNodeStart(WorkflowAction):
 
 
 class WorkflowActionNodeEnd(WorkflowAction):
-    action: typing.Literal['node-start'] = 'node-end'
+    action: typing.Literal['node-end'] = 'node-end'
     node: _WorkflowNodeRef
     results: typing.List[WorkflowHandlerResult]
 
 
 class WorkflowActionNodeError(WorkflowAction):
-    action: typing.Literal['node-start'] = 'node-error'
+    action: typing.Literal['node-error'] = 'node-error'
     node: _WorkflowNodeRef
     message: str
     exc_type: str
@@ -92,7 +101,7 @@ class WorkflowActionNodeError(WorkflowAction):
 
 
 class WorkflowActionDefault(WorkflowAction):
-    action: typing.Literal['node-start'] = 'default'
+    action: typing.Literal['default'] = 'default'
     node: _WorkflowNodeRef
     data: dict
 
@@ -203,6 +212,24 @@ class WorkflowEngine(FastMCP):
 
         ref = _WorkflowRef(id=workflow.id, name=workflow.name or workflow.id)
         yield WorkflowActionStart(workflow=ref, timestamp=start, data=payload).model_dump()
+
+        if workflow.event and workflow.event.json_schema:
+            try:
+                jsonschema.validate(instance=payload, schema=workflow.event.json_schema)
+            except jsonschema.ValidationError as e:
+                exc_type, _, tb = sys.exc_info()
+                yield WorkflowActionSchemaError(
+                    workflow=ref, message=str(e), exc_type=exc_type.__name__, traceback=list(self._get_tb(tb))
+                ).model_dump()
+
+                end = time.perf_counter()
+                duration = end - start
+                yield WorkflowActionFailed(workflow=ref, timestamp=end, duration=duration, usage=usage).model_dump()
+                logger.info(
+                    "Workflow '%s' failed due to invalid schema in %s seconds.",
+                    workflow_name, f'{duration:.4f}'
+                )
+                return
 
         nodes = {node.id: node for node in workflow.nodes}
         node = nodes.get(workflow.start_node_id)

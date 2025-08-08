@@ -12,11 +12,13 @@ Slug = typing.Annotated[
 ]
 type WorkflowData = typing.Optional[typing.Dict[str, typing.Any]]
 type WorkflowMetadata = typing.Optional[typing.Dict[str, typing.Any]]
+type WorkflowJsonSchema = typing.Optional[typing.Dict[str, typing.Any]]
 
 
 class WorkflowEvent(pydantic.BaseModel):
     name: str
     type: str
+    json_schema: WorkflowJsonSchema = None
     metadata: WorkflowMetadata = None
 
 

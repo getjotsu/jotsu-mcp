@@ -88,3 +88,9 @@ Finally, add some initial data that the 'greet' tool needs.
 Running it again generates:
 
 
+## Development
+
+```shell
+uv venv
+uv pip install .[dev,cli,anthropic]
+```

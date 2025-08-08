@@ -4,7 +4,8 @@ import pydantic
 import pytest
 
 from jotsu.mcp.types import Workflow, WorkflowServer
-from jotsu.mcp.types.models import WorkflowNode, WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode
+from jotsu.mcp.types.models import WorkflowNode, WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode, \
+    WorkflowEvent
 from jotsu.mcp.workflow import WorkflowEngine
 from jotsu.mcp.workflow.handler import WorkflowHandler
 
@@ -99,3 +100,40 @@ async def test_engine_workflow_failed(mocker):
     assert len(trace) == 4   # node start/error + workflow start/failed
     assert trace[2]['action'] == 'node-error'
     assert trace[3]['action'] == 'workflow-failed'
+
+
+JSON_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'name': {
+            'type': 'string'
+        }
+    },
+    'required': ['name'],
+    'additionalProperties': False
+}
+
+
+async def test_engine_schema():
+
+    event = WorkflowEvent(name='manual', type='manual', json_schema=JSON_SCHEMA)
+    workflow = Workflow(id='test-workflow', name='Test', event=event)
+
+    engine = WorkflowEngine([workflow])
+
+    trace = [x async for x in engine.run_workflow('test-workflow', data={'name': 'foo'})]
+    assert len(trace) == 2   # node start/error + workflow start/failed
+    assert trace[1]['action'] == 'workflow-end'
+
+
+async def test_engine_schema_validation_error():
+
+    event = WorkflowEvent(name='manual', type='manual', json_schema=JSON_SCHEMA)
+    workflow = Workflow(id='test-workflow', name='Test', event=event)
+
+    engine = WorkflowEngine([workflow])
+
+    trace = [x async for x in engine.run_workflow('test-workflow')]
+    assert len(trace) == 3   # node start/error + workflow start/failed
+    assert trace[1]['action'] == 'workflow-schema-error'
+    assert trace[2]['action'] == 'workflow-failed'
