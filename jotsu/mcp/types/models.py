@@ -66,6 +66,21 @@ class WorkflowPromptNode(WorkflowMCPNode):
     type: typing.Literal['prompt'] = 'prompt'
 
 
+class WorkflowTransform(pydantic.BaseModel):
+    type: typing.Literal['set', 'move', 'delete']
+    source: str
+    target: str | None = None
+    datatype: typing.Optional[typing.Literal['string', 'integer', 'float', 'boolean']] = None
+
+
+class WorkflowTransformNode(WorkflowRulesNode):
+    """ Change data.
+    """
+    type: typing.Literal['transform'] = 'transform'
+    transforms: list[WorkflowTransform]
+    expr: str | None = None
+
+
 class WorkflowSwitchNode(WorkflowRulesNode):
     """ Switch node with multiple output(s)
     """
@@ -125,7 +140,7 @@ class WorkflowServerFull(WorkflowServer):
 NodeUnion = typing.Annotated[
     typing.Union[
         WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode,
-        WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode,
+        WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode, WorkflowTransformNode,
         WorkflowAnthropicNode, WorkflowNode
     ],
     'type'

@@ -9,7 +9,7 @@ from mcp.types import (
 
 from jotsu.mcp.types.exceptions import JotsuException
 from jotsu.mcp.types.models import WorkflowMCPNode, WorkflowLoopNode, WorkflowSwitchNode, WorkflowFunctionNode, \
-    WorkflowAnthropicNode, Workflow, WorkflowServer
+    WorkflowAnthropicNode, Workflow, WorkflowServer, WorkflowTransformNode, WorkflowTransform
 from jotsu.mcp.types.rules import GreaterThanEqualRule, LessThanRule
 from jotsu.mcp.workflow import WorkflowEngine
 from jotsu.mcp.workflow.handler import WorkflowHandler
@@ -434,3 +434,83 @@ async def test_handler_anthropic_servers(mocker):
     result = await handler.handle_anthropic({'prompt': 'What?'}, workflow=workflow, node=node, usage=[])
     assert 'content' in result
     anthropic_client_create.assert_called_once()
+
+
+async def test_handler_transform_move():
+    engine = WorkflowEngine([])
+
+    transform = WorkflowTransform(type='move', source='a', target='b')
+
+    node = WorkflowTransformNode(
+        id='1', name='test-transform',
+        transforms=[transform],
+        edges=['e1']
+    )
+
+    handler = WorkflowHandler(engine=engine)
+    results = await handler.handle_transform({'a': 3}, node=node)
+
+    expected = [
+        {'edge': 'e1', 'data': {'b': 3}}
+    ]
+
+    assert [x.model_dump() for x in results] == expected
+
+
+async def test_handler_transform_set():
+    engine = WorkflowEngine([])
+
+    transform = WorkflowTransform(type='set', source='$string(a * 2)', target='b.foo.bar')
+
+    node = WorkflowTransformNode(
+        id='1', name='test-transform',
+        transforms=[transform],
+        edges=['e1']
+    )
+
+    handler = WorkflowHandler(engine=engine)
+    results = await handler.handle_transform({'a': 3}, node=node)
+
+    expected = [
+        {'edge': 'e1', 'data': {'a': 3, 'b': {'foo': {'bar': '6'}}}}
+    ]
+
+    assert [x.model_dump() for x in results] == expected
+
+
+async def test_handler_transform_set_constant():
+    engine = WorkflowEngine([])
+
+    transform = WorkflowTransform(type='set', source='"c"', target='a.b')
+
+    node = WorkflowTransformNode(
+        id='1', name='test-transform',
+        transforms=[transform],
+        edges=['e1']
+    )
+
+    handler = WorkflowHandler(engine=engine)
+    results = await handler.handle_transform({'a': {'b': 3}}, node=node)
+
+    expected = [
+        {'edge': 'e1', 'data': {'a': {'b': 'c'}}}
+    ]
+
+    assert [x.model_dump() for x in results] == expected
+
+
+async def test_handler_transform_delete():
+    engine = WorkflowEngine([])
+
+    transform = WorkflowTransform(type='delete', source='a')
+
+    node = WorkflowTransformNode(
+        id='1', name='test-transform',
+        transforms=[transform],
+        edges=['e1']
+    )
+
+    handler = WorkflowHandler(engine=engine)
+    results = await handler.handle_transform({'a': 3}, node=node)
+
+    assert [x.model_dump() for x in results] == [{'edge': 'e1', 'data': {}}]

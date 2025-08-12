@@ -1,3 +1,5 @@
+import typing
+
 from asteval import Interpreter
 
 
@@ -29,3 +31,36 @@ def pybars_render(source: str, data: any) -> str:
     compiler = pybars_compiler()
     template = compiler.compile(source)
     return template(source, data)
+
+
+def path_set(data: dict, *, path: str, value):
+    parts = path.split('.')
+    for key in parts[:-1]:
+        data = data.setdefault(key, {})
+    data[parts[-1]] = value
+
+
+def path_delete(data: dict, *, path: str):
+    parts = path.split('.')
+    for key in parts[:-1]:
+        try:
+            data = data.get(key, None)
+        except AttributeError:
+            data = None
+
+        if data is None:
+            return
+
+    del data[parts[-1]]
+
+
+def transform_cast(value, *, datatype: typing.Literal['string', 'number', 'boolean'] | None):
+    match datatype:
+        case 'string':
+            return str(value)
+        case 'number':
+            num = float(value)
+            return int(num) if num.is_integer() else num
+        case 'boolean':
+            return bool(value)
+    return value

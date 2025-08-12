@@ -11,12 +11,13 @@ from jotsu.mcp.types.rules import Rule
 from jotsu.mcp.types.models import (
     WorkflowMCPNode,
     WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode,
-    WorkflowAnthropicNode, WorkflowModelUsage, Workflow
+    WorkflowAnthropicNode, WorkflowModelUsage, Workflow, WorkflowRulesNode, WorkflowTransformNode
 )
 from jotsu.mcp.client.client import MCPClientSession
 
 from .sessions import WorkflowSessionManager
-from .utils import asteval, pybars_render
+from . import utils
+
 
 if typing.TYPE_CHECKING:
     from .engine import WorkflowEngine
@@ -49,12 +50,12 @@ class WorkflowHandler:
             messages = []
             prompt = data.get('prompt', node.prompt)
             if prompt:
-                messages.append({'role': 'user', 'content': pybars_render(prompt, data)})
+                messages.append({'role': 'user', 'content': utils.pybars_render(prompt, data)})
 
         kwargs = {}
         system = data.get('system', node.system)
         if system:
-            kwargs['system'] = pybars_render(system, data)
+            kwargs['system'] = utils.pybars_render(system, data)
         if node.json_schema:
             kwargs['tools'] = [{'name': 'structured_output', 'input_schema': node.json_schema}]
         if workflow.servers:
@@ -146,9 +147,7 @@ class WorkflowHandler:
                 )
         return data
 
-    async def handle_switch(
-            self, data: dict, *, node: WorkflowSwitchNode, **_kwargs
-    ) -> typing.List[WorkflowHandlerResult]:
+    def _handle_rules(self, node: WorkflowRulesNode, data: dict):
         results = []
         value = self._jsonata_value(data, node.expr) if node.expr else data
         for i, edge in enumerate(node.edges):
@@ -160,6 +159,30 @@ class WorkflowHandler:
                 results.append(WorkflowHandlerResult(edge=edge, data=data))
 
         return results
+
+    async def handle_transform(
+            self, data: dict, *, node: WorkflowTransformNode, **_kwargs
+    ) -> typing.List[WorkflowHandlerResult]:
+        for transform in node.transforms:
+            source_value = utils.transform_cast(
+                self._jsonata_value(data, transform.source), datatype=transform.datatype
+            )
+
+            match transform.type:
+                case 'set':
+                    utils.path_set(data, path=transform.target, value=source_value)
+                case 'move':
+                    utils.path_set(data, path=transform.target, value=source_value)
+                    utils.path_delete(data, path=transform.source)
+                case 'delete':
+                    utils.path_delete(data, path=transform.source)
+
+        return self._handle_rules(node, data)
+
+    async def handle_switch(
+            self, data: dict, *, node: WorkflowSwitchNode, **_kwargs
+    ) -> typing.List[WorkflowHandlerResult]:
+        return self._handle_rules(node, data)
 
     async def handle_loop(
             self, data: dict, *, node: WorkflowLoopNode, **_kwargs
@@ -186,7 +209,7 @@ class WorkflowHandler:
             data: dict, *, node: WorkflowFunctionNode, **_kwargs
     ):
         if node.edges:
-            result = asteval(data, expr=node.function, node=node)
+            result = utils.asteval(data, expr=node.function, node=node)
             match result:
                 case _ if isinstance(result, dict):
                     return [WorkflowHandlerResult(edge=edge, data=result) for edge in node.edges]
