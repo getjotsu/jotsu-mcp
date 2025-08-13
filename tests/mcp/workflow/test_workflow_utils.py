@@ -24,6 +24,7 @@ def test_transform_cast():
     assert transform_cast('a', datatype=None) == 'a'
     assert transform_cast(True, datatype='string') == 'True'
     assert transform_cast('123', datatype='number') == 123
+    assert transform_cast('123', datatype='integer') == 123
     assert transform_cast('123.5', datatype='number') == 123.5
     assert transform_cast('a', datatype='boolean') is True
     assert transform_cast(0, datatype='boolean') is False

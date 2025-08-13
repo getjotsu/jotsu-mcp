@@ -50,12 +50,12 @@ class WorkflowHandler:
             messages = []
             prompt = data.get('prompt', node.prompt)
             if prompt:
-                messages.append({'role': 'user', 'content': utils.pybars_render(prompt, data)})
+                messages.append({'role': 'user', 'content': utils.pybars_render(prompt, {'data': data})})
 
         kwargs = {}
         system = data.get('system', node.system)
         if system:
-            kwargs['system'] = utils.pybars_render(system, data)
+            kwargs['system'] = utils.pybars_render(system, {'data': data})
         if node.json_schema:
             kwargs['tools'] = [{'name': 'structured_output', 'input_schema': node.json_schema}]
         if workflow.servers:

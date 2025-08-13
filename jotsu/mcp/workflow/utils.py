@@ -54,11 +54,13 @@ def path_delete(data: dict, *, path: str):
     del data[parts[-1]]
 
 
-def transform_cast(value, *, datatype: typing.Literal['string', 'number', 'boolean'] | None):
+def transform_cast(value, *, datatype: typing.Literal['string', 'number', 'integer', 'float', 'boolean'] | None):
     match datatype:
         case 'string':
             return str(value)
-        case 'number':
+        case 'integer':
+            return int(value)
+        case 'float' | 'number':
             num = float(value)
             return int(num) if num.is_integer() else num
         case 'boolean':
