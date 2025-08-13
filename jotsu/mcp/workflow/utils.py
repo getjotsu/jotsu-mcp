@@ -1,6 +1,7 @@
 import typing
 
 from asteval import Interpreter
+from ulid import ULID
 
 
 def wrap_function(expr: str):
@@ -66,3 +67,7 @@ def transform_cast(value, *, datatype: typing.Literal['string', 'number', 'integ
         case 'boolean':
             return bool(value)
     return value
+
+
+def ulid():
+    return str(ULID()).lower()
