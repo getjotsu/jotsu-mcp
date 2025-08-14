@@ -44,7 +44,8 @@ class _WorkflowTracebackFrame(pydantic.BaseModel):
 class WorkflowAction(pydantic.BaseModel):
     action: str
     timestamp: float = 0
-    id: str  # The run id.
+    id: typing.Annotated[str, 'The id of this action instance'] = pydantic.Field(default_factory=ulid)
+    run_id: typing.Annotated[str, 'The id of this run instance']
 
     @pydantic.model_validator(mode='before')  # noqa
     @classmethod
@@ -170,24 +171,25 @@ class WorkflowEngine(FastMCP):
 
         method = getattr(self._handler, f'handle_{node.type}', None)
         if method:
-            yield WorkflowActionNodeStart(node=ref, data=data, id=run_id).model_dump()
+            yield WorkflowActionNodeStart(node=ref, data=data, run_id=run_id).model_dump()
 
             try:
                 result = await method(data, workflow=workflow, node=node, sessions=sessions, usage=usage)
                 results: typing.List[WorkflowHandlerResult] = self._results(node, result)
-                yield WorkflowActionNodeEnd(node=ref, results=results, id=run_id).model_dump()
+                yield WorkflowActionNodeEnd(node=ref, results=results, run_id=run_id).model_dump()
             except Exception as e:  # noqa
                 logger.exception('handler exception')
 
                 exc_type, _, tb = sys.exc_info()
                 yield WorkflowActionNodeError(
-                    node=ref, message=str(e), exc_type=exc_type.__name__, traceback=list(self._get_tb(tb)), id=run_id
+                    node=ref, message=str(e), run_id=run_id,
+                    exc_type=exc_type.__name__, traceback=list(self._get_tb(tb))
                 ).model_dump()
 
                 raise e
 
         else:
-            yield WorkflowActionDefault(node=ref, data=data, id=run_id).model_dump()
+            yield WorkflowActionDefault(node=ref, data=data, run_id=run_id).model_dump()
             results: typing.List[WorkflowHandlerResult] = self._results(node, data)
 
         for result in results:
@@ -215,7 +217,7 @@ class WorkflowEngine(FastMCP):
             payload.update(data)
 
         ref = _WorkflowRef(id=workflow.id, name=workflow.name or workflow.id)
-        yield WorkflowActionStart(workflow=ref, timestamp=start, data=payload, id=run_id).model_dump()
+        yield WorkflowActionStart(workflow=ref, timestamp=start, data=payload, run_id=run_id).model_dump()
 
         if workflow.event and workflow.event.json_schema:
             try:
@@ -223,14 +225,14 @@ class WorkflowEngine(FastMCP):
             except jsonschema.ValidationError as e:
                 exc_type, _, tb = sys.exc_info()
                 yield WorkflowActionSchemaError(
-                    workflow=ref, message=str(e), id=run_id,
+                    workflow=ref, message=str(e), run_id=run_id,
                     exc_type=exc_type.__name__, traceback=list(self._get_tb(tb)),
                 ).model_dump()
 
                 end = time.perf_counter()
                 duration = end - start
                 yield WorkflowActionFailed(
-                    workflow=ref, timestamp=end, duration=duration, usage=usage, id=run_id
+                    workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
                 ).model_dump()
                 logger.info(
                     "Workflow '%s' failed due to invalid schema in %s seconds.",
@@ -246,7 +248,7 @@ class WorkflowEngine(FastMCP):
             duration = end - start
 
             yield WorkflowActionEnd(
-                workflow=ref, timestamp=end, duration=duration, usage=usage, id=run_id
+                workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
             ).model_dump()
 
             logger.info(
@@ -273,7 +275,7 @@ class WorkflowEngine(FastMCP):
 
             if success:
                 yield WorkflowActionEnd(
-                    workflow=ref, timestamp=end, duration=duration, usage=usage, id=run_id
+                    workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
                 ).model_dump()
                 logger.info(
                     "Workflow '%s [%s]' completed successfully in %s seconds.",
@@ -281,7 +283,7 @@ class WorkflowEngine(FastMCP):
                 )
             else:
                 yield WorkflowActionFailed(
-                    workflow=ref, timestamp=end, duration=duration, usage=usage, id=run_id
+                    workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
                 ).model_dump()
                 logger.info(
                     "Workflow '%s [%s]' failed in %s seconds.",

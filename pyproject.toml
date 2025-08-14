@@ -35,7 +35,6 @@ anthropic = [
     "anthropic>=0.57.1",
     "pybars3>=0.9.7",
 ]
-
 dev = [
     "flake8>=7.2.0",
     "flake8-quotes>=3.4.0",
