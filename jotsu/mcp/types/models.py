@@ -112,6 +112,7 @@ class WorkflowAnthropicNode(WorkflowNode):
     system: str | None = None
     servers: typing.Literal['*'] | list[str] | None = None
     max_tokens: int = 1024
+    use_json_schema: typing.Optional[bool] = None
     json_schema: typing.Optional[dict] = None
     include_message_in_output: bool = True
 

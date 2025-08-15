@@ -25,6 +25,13 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+JSON_SCHEMA = {
+    '$schema': 'https://json-schema.org/draft/2020-12/schema',
+    'type': 'object',
+    'additionalProperties': True
+}
+
+
 class WorkflowHandlerResult(pydantic.BaseModel):
     edge: str
     data: dict
@@ -56,8 +63,12 @@ class WorkflowHandler:
         system = data.get('system', node.system)
         if system:
             kwargs['system'] = utils.pybars_render(system, {'data': data})
-        if node.json_schema:
-            kwargs['tools'] = [{'name': 'structured_output', 'input_schema': node.json_schema}]
+        if node.use_json_schema or (node.use_json_schema is None and node.json_schema):
+            tool = {
+                'name': 'structured_output',
+                'input_schema': node.json_schema if node.json_schema else JSON_SCHEMA
+            }
+            kwargs['tools'] = [tool]
         if workflow.servers:
             kwargs['mcp_servers'] = []
             kwargs['betas'] = ['mcp-client-2025-04-04']
