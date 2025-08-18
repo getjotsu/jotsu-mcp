@@ -42,7 +42,7 @@ class WorkflowHandler:
         self._engine = engine
 
     async def handle_anthropic(
-            self, data: dict, *, workflow: Workflow, node: WorkflowAnthropicNode,
+            self, data: dict, *, action_id: str, workflow: Workflow, node: WorkflowAnthropicNode,
             usage: typing.List[WorkflowModelUsage], **_kwargs
     ):
         from anthropic.types.beta.beta_message import BetaMessage
@@ -86,7 +86,7 @@ class WorkflowHandler:
             **kwargs
         )
 
-        usage.append(WorkflowModelUsage(node_id=node.id, model=node.model, **message.usage.model_dump(mode='json')))
+        usage.append(WorkflowModelUsage(ref_id=action_id, model=node.model, **message.usage.model_dump(mode='json')))
 
         if node.include_message_in_output:
             data.update(message.model_dump(mode='json'))

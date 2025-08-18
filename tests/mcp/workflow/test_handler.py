@@ -351,7 +351,10 @@ async def test_handler_anthropic(mocker):
     )
 
     handler = WorkflowHandler(engine=engine)
-    result = await handler.handle_anthropic({'prompt': 'What?'}, workflow=workflow, node=node, usage=[])
+    result = await handler.handle_anthropic(
+        {'prompt': 'What?'},
+        action_id='x', workflow=workflow, node=node, usage=[]
+    )
     assert 'content' in result
     anthropic_client_create.assert_called_once()
 
@@ -392,7 +395,9 @@ async def test_handler_anthropic_schema(mocker):
     )
 
     handler = WorkflowHandler(engine=engine)
-    result = await handler.handle_anthropic({'prompt': 'What?'}, workflow=workflow, node=node, usage=[])
+    result = await handler.handle_anthropic(
+        {'prompt': 'What?'}, action_id='x', workflow=workflow, node=node, usage=[]
+    )
     assert result['foo'] == 'baz'
     anthropic_client_create.assert_called_once()
 
@@ -431,7 +436,9 @@ async def test_handler_anthropic_servers(mocker):
     )
 
     handler = WorkflowHandler(engine=engine)
-    result = await handler.handle_anthropic({'prompt': 'What?'}, workflow=workflow, node=node, usage=[])
+    result = await handler.handle_anthropic(
+        {'prompt': 'What?'}, action_id='x', workflow=workflow, node=node, usage=[]
+    )
     assert 'content' in result
     anthropic_client_create.assert_called_once()
 

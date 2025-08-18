@@ -2,7 +2,8 @@ from .exceptions import JotsuException
 from .models import (
     Workflow, WorkflowServer, WorkflowEvent,
     WorkflowNode, WorkflowMCPNode, WorkflowPromptNode, WorkflowResourceNode, WorkflowToolNode,
-    WorkflowSwitchNode, WorkflowFunctionNode, WorkflowLoopNode
+    WorkflowSwitchNode, WorkflowFunctionNode, WorkflowLoopNode,
+    WorkflowModelUsage, slug
 )
 from .rules import (
     Rule, LessThanRule, LessThanEqualRule, GreaterThanRule, GreaterThanEqualRule,
@@ -14,6 +15,8 @@ __all__ = [
     Workflow, WorkflowNode, WorkflowServer, WorkflowEvent,
     WorkflowNode, WorkflowMCPNode, WorkflowPromptNode, WorkflowResourceNode, WorkflowToolNode,
     WorkflowSwitchNode, WorkflowFunctionNode, WorkflowLoopNode,
+    WorkflowModelUsage,
     Rule, LessThanRule, LessThanEqualRule, GreaterThanRule, GreaterThanEqualRule,
-    RegexMatchRule, RegexSearchRule, EqualRule, NotEqualRule, BetweenRule, ContainsRule
+    RegexMatchRule, RegexSearchRule, EqualRule, NotEqualRule, BetweenRule, ContainsRule,
+    slug,
 ]

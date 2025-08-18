@@ -12,11 +12,10 @@ from mcp.types import Resource
 from jotsu.mcp.types import Workflow
 from jotsu.mcp.local import LocalMCPClient
 from jotsu.mcp.client.client import MCPClient
-from jotsu.mcp.types.models import WorkflowNode, WorkflowModelUsage, WorkflowData
+from jotsu.mcp.types.models import WorkflowNode, WorkflowModelUsage, WorkflowData, slug
 
 from .handler import WorkflowHandler, WorkflowHandlerResult
 from .sessions import WorkflowSessionManager
-from .utils import ulid
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ class _WorkflowTracebackFrame(pydantic.BaseModel):
 class WorkflowAction(pydantic.BaseModel):
     action: str
     timestamp: float = 0
-    id: typing.Annotated[str, 'The id of this action instance'] = pydantic.Field(default_factory=ulid)
+    id: typing.Annotated[str, 'The id of this action instance'] = pydantic.Field(default_factory=slug)
     run_id: typing.Annotated[str, 'The id of this run instance']
 
     @pydantic.model_validator(mode='before')  # noqa
@@ -174,9 +173,12 @@ class WorkflowEngine(FastMCP):
             yield WorkflowActionNodeStart(node=ref, data=data, run_id=run_id).model_dump()
 
             try:
-                result = await method(data, workflow=workflow, node=node, sessions=sessions, usage=usage)
+                action_id = slug()
+                result = await method(
+                    data, action_id=action_id, workflow=workflow, node=node, sessions=sessions, usage=usage
+                )
                 results: typing.List[WorkflowHandlerResult] = self._results(node, result)
-                yield WorkflowActionNodeEnd(node=ref, results=results, run_id=run_id).model_dump()
+                yield WorkflowActionNodeEnd(id=action_id, node=ref, results=results, run_id=run_id).model_dump()
             except Exception as e:  # noqa
                 logger.exception('handler exception')
 
@@ -199,7 +201,7 @@ class WorkflowEngine(FastMCP):
             ):
                 yield status
 
-    async def run_workflow(self, name: str, data: dict = None):
+    async def run_workflow(self, name: str, data: dict = None, *, run_id: str = None):
         start = time.perf_counter()
         usage: list[WorkflowModelUsage] = []
 
@@ -208,7 +210,7 @@ class WorkflowEngine(FastMCP):
             logger.error('Workflow not found: %s', name)
             raise ValueError(f'Workflow not found: {name}')
 
-        run_id = ulid()
+        run_id = run_id if run_id else slug()
         workflow_name = f'{workflow.name} [{workflow.id}]' if workflow.name != workflow.id else workflow.name
         logger.info("Running workflow '%s'.", workflow_name)
 

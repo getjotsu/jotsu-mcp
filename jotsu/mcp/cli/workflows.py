@@ -7,9 +7,8 @@ import click
 from dotenv import load_dotenv
 
 from jotsu.mcp.local import LocalMCPClient
-from jotsu.mcp.types import Workflow, WorkflowEvent
+from jotsu.mcp.types import Workflow, WorkflowEvent, slug
 from jotsu.mcp.workflow.engine import WorkflowEngine
-from jotsu.mcp.workflow.utils import ulid
 
 from .base import cli
 from . import utils
@@ -38,7 +37,7 @@ async def init(path: str, id_: str, name: str, description: str, force: bool):
             click.echo('canceled.')
             sys.exit(0)
 
-    workflow_id = id_ or ulid()
+    workflow_id = id_ or slug()
     flow = Workflow(id=workflow_id, name=name or workflow_id, description=description)
 
     flow.event = WorkflowEvent(name='Manual', type='manual')

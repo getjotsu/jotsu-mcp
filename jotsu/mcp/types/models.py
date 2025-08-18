@@ -2,8 +2,13 @@ import typing
 
 import pydantic
 from mcp.types import Tool, Resource, Prompt
+from ulid import ULID
 
 from .rules import Rule
+
+
+def slug():
+    return str(ULID()).lower()
 
 
 Slug = typing.Annotated[
@@ -27,7 +32,7 @@ class WorkflowNode(pydantic.BaseModel):
     resources and prompts.
     """
     model_config = pydantic.ConfigDict(extra='allow')
-    id: Slug
+    id: Slug = pydantic.Field(default_factory=slug)
     name: str
     type: str
     metadata: WorkflowMetadata = None
@@ -121,7 +126,7 @@ class WorkflowServer(pydantic.BaseModel):
     """ Servers are any streaming-http MCP Server that this workflow can use.
     When the workflow is started, each of these servers is queried for all available actions.
     """
-    id: Slug
+    id: Slug = pydantic.Field(default_factory=slug)
     name: str | None = None
     url: pydantic.AnyHttpUrl
     headers: typing.Dict[str, str] = pydantic.Field(default_factory=dict)
@@ -149,7 +154,7 @@ NodeUnion = typing.Annotated[
 
 
 class Workflow(pydantic.BaseModel):
-    id: Slug
+    id: Slug = pydantic.Field(default_factory=slug)
     name: str | None = None
     description: str | None = None
     event: WorkflowEvent | None = None
@@ -164,7 +169,7 @@ class Workflow(pydantic.BaseModel):
 
 class WorkflowModelUsage(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra='allow')
-    node_id: str
+    ref_id: str
     model: str
     input_tokens: int = 0
     output_tokens: int = 0
