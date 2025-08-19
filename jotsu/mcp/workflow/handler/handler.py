@@ -4,7 +4,7 @@ import typing
 
 import jsonata
 import pydantic
-from mcp.types import ReadResourceResult, GetPromptResult, CallToolResult
+from mcp.types import ReadResourceResult, GetPromptResult
 
 from jotsu.mcp.types.exceptions import JotsuException
 from jotsu.mcp.types.rules import Rule
@@ -15,12 +15,13 @@ from jotsu.mcp.types.models import (
 )
 from jotsu.mcp.client.client import MCPClientSession
 
-from .sessions import WorkflowSessionManager
-from . import utils
+from jotsu.mcp.workflow import utils
+from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
+from .tools import ToolMixin
 
 if typing.TYPE_CHECKING:
-    from .engine import WorkflowEngine
+    from jotsu.mcp.workflow.engine import WorkflowEngine
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class WorkflowHandlerResult(pydantic.BaseModel):
     data: dict
 
 
-class WorkflowHandler:
+class WorkflowHandler(ToolMixin):
     def __init__(self, engine: 'WorkflowEngine'):
         self._engine = engine
 
@@ -134,27 +135,6 @@ class WorkflowHandler:
             else:
                 logger.warning(
                     "Invalid message type '%s' for prompt '%s'.", message_type, node.name
-                )
-        return data
-
-    async def handle_tool(
-            self, data: dict, *,
-            node: WorkflowMCPNode, sessions: WorkflowSessionManager, **_kwargs
-    ):
-        session = self._get_session(node.server_id, sessions=sessions)
-
-        result: CallToolResult = await session.call_tool(node.name, arguments=data)
-        if result.isError:
-            raise JotsuException(f"Error calling tool '{node.name}': {result.content[0].text}.")
-
-        for content in result.content:
-            message_type = content.type
-            if message_type == 'text':
-                # Tools don't have a mime type and only text is currently supported.
-                data = self._update_text(data, text=content.text, member=node.member or node.name)
-            else:
-                logger.warning(
-                    "Invalid message type '%s' for tool '%s'.", message_type, node.name
                 )
         return data
 

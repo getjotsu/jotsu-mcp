@@ -51,16 +51,25 @@ async def init(path: str, id_: str, name: str, description: str, force: bool):
 
 @workflow.command()
 @click.argument('path')
+@click.option('--data', default=None, help='Initial data specified as JSON or as a path to a JSON file.')
 @click.option('--no-format', is_flag=True, default=False)
 @utils.async_cmd
-async def run(path: str, no_format: bool):
+async def run(path: str, no_format: bool, data: str):
     """Run a given workflow. """
     indent = None if no_format else 4
+
+    if data:
+        data = data.strip()
+        if data.startswith('{'):
+            data = json.loads(data)
+        else:
+            with open(data, 'r') as fp:
+                data = json.load(fp)
 
     async with aiofiles.open(path) as f:
         content = await f.read()
     flow = Workflow(**json.loads(content))
 
     engine = WorkflowEngine(flow, client=LocalMCPClient())
-    async for msg in engine.run_workflow(flow.id):
+    async for msg in engine.run_workflow(flow.id, data):
         click.echo(json.dumps(msg, indent=indent))
