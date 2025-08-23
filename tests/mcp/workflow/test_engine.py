@@ -10,7 +10,6 @@ from jotsu.mcp.workflow import WorkflowEngine
 from jotsu.mcp.workflow.handler import WorkflowHandler
 
 
-@pytest.mark.anyio
 async def test_engine():
     workflow = Workflow(id='test', name='Test')
     engine = WorkflowEngine([workflow])
@@ -39,7 +38,6 @@ class MockHandler(WorkflowHandler):
         return data
 
 
-@pytest.mark.anyio
 async def test_engine_workflow(mocker):
 
     @asynccontextmanager
@@ -65,7 +63,6 @@ async def test_engine_workflow(mocker):
     assert len(trace) == 10   # 2 per node + workflow start/end
 
 
-@pytest.mark.anyio
 async def test_engine_default_handler():
     workflow = Workflow(id='test-workflow', name='Test', start_node_id='1')
     workflow.nodes.append(WorkflowNode(id='1', name='missing', type='unknown'))
@@ -77,7 +74,6 @@ async def test_engine_default_handler():
     assert trace[1]['action'] == 'default'
 
 
-@pytest.mark.anyio
 async def test_engine_workflow_not_found(mocker):
     logger_error = mocker.patch('jotsu.mcp.workflow.engine.logger.error')
     engine = WorkflowEngine([], handler_cls=MockHandler)

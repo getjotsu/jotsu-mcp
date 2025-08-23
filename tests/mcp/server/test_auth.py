@@ -64,7 +64,6 @@ def authorization_code_fixture(client_info):
     )
 
 
-@pytest.mark.anyio
 async def test_auth(provider):
     client_info = OAuthClientInformationFull(
         client_id='abc',
@@ -75,7 +74,6 @@ async def test_auth(provider):
     assert (await provider.get_client(client_id='abc')).client_id == 'abc'
 
 
-@pytest.mark.anyio
 async def test_auth_register_error(provider, mocker):
     logger_exception = mocker.patch('jotsu.mcp.server.auth.logger.exception')
     client_info = OAuthClientInformationFull(
@@ -89,7 +87,6 @@ async def test_auth_register_error(provider, mocker):
     logger_exception.assert_called_once()
 
 
-@pytest.mark.anyio
 async def test_auth_authorize(provider, mocker):
     client_info = OAuthClientInformationFull(
         client_id='abc',
@@ -108,7 +105,6 @@ async def test_auth_authorize(provider, mocker):
     assert url
 
 
-@pytest.mark.anyio
 async def test_auth_load_authorization_code(provider, client_info):
     params = AuthorizationParams(
         state='xxx',
@@ -124,7 +120,6 @@ async def test_auth_load_authorization_code(provider, client_info):
     assert res.code == '123'
 
 
-@pytest.mark.anyio
 async def test_auth_exchange_authorization_code(provider, client_info, authorization_code, mocker):
     mocked_oauth = mocker.patch.object(provider.oauth, 'exchange_authorization_code', new_callable=mocker.AsyncMock)
     mocked_oauth.return_value = OAuthToken(access_token='abc')
@@ -133,7 +128,6 @@ async def test_auth_exchange_authorization_code(provider, client_info, authoriza
     assert res.access_token != 'abc'
 
 
-@pytest.mark.anyio
 async def test_auth_exchange_authorization_code_status_error(provider, client_info, authorization_code, mocker):
     logger_error = mocker.patch('jotsu.mcp.server.auth.logger.error')
     mocked_oauth = mocker.patch.object(provider.oauth, 'exchange_authorization_code', new_callable=mocker.AsyncMock)
@@ -149,7 +143,6 @@ async def test_auth_exchange_authorization_code_status_error(provider, client_in
     logger_error.assert_called_once()
 
 
-@pytest.mark.anyio
 async def test_auth_exchange_authorization_code_exception(provider, client_info, authorization_code, mocker):
     logger_exception = mocker.patch('jotsu.mcp.server.auth.logger.exception')
     mocked_oauth = mocker.patch.object(provider.oauth, 'exchange_authorization_code', new_callable=mocker.AsyncMock)
@@ -165,7 +158,6 @@ async def test_auth_exchange_authorization_code_exception(provider, client_info,
     logger_exception.assert_called_once()
 
 
-@pytest.mark.anyio
 async def test_auth_load_refresh_token(provider, client_info):
     payload = {
         'token': '123',
@@ -180,7 +172,6 @@ async def test_auth_load_refresh_token(provider, client_info):
     assert res.token == '123'
 
 
-@pytest.mark.anyio
 async def test_auth_load_refresh_token_decode_error(provider, client_info):
     payload = {
         'token': '123',
@@ -195,7 +186,6 @@ async def test_auth_load_refresh_token_decode_error(provider, client_info):
     assert res is None
 
 
-@pytest.mark.anyio
 async def test_auth_exchange_refresh_token(provider, client_info, mocker):
     mock_oauth = mocker.patch.object(provider.oauth, 'exchange_refresh_token', new_callable=mocker.AsyncMock)
     mock_oauth.return_value = None
@@ -215,7 +205,6 @@ async def test_auth_exchange_refresh_token(provider, client_info, mocker):
     assert res is None
 
 
-@pytest.mark.anyio
 async def test_auth_load_access_token(provider, client_info):
     payload = {
         'token': '123',
@@ -230,7 +219,6 @@ async def test_auth_load_access_token(provider, client_info):
     assert res.token == '123'
 
 
-@pytest.mark.anyio
 async def test_auth_load_access_token_decode_error(provider, client_info):
     payload = {
         'token': '123',
@@ -245,7 +233,6 @@ async def test_auth_load_access_token_decode_error(provider, client_info):
     assert res is None
 
 
-@pytest.mark.anyio
 async def test_auth_revoke_token(provider, mocker):
     # not implemented
     assert await provider.revoke_token(mocker.Mock()) is None

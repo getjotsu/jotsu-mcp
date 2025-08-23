@@ -1,5 +1,4 @@
 import pydantic
-import pytest
 
 from mcp.server.auth.provider import AuthorizationParams
 
@@ -7,7 +6,6 @@ from jotsu.mcp.local.cache import AsyncMemoryCache
 from jotsu.mcp.server import redirect_route
 
 
-@pytest.mark.anyio
 async def test_route_redirect_route(mocker):
     params = AuthorizationParams(
         state='xxx',
