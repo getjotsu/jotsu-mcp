@@ -19,7 +19,6 @@ class MockCredentialsManager(CredentialsManager):
         }
 
 
-@pytest.mark.asyncio
 async def test_client():
     server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
 
@@ -30,7 +29,6 @@ async def test_client():
         assert result.isError is False
 
 
-@pytest.mark.asyncio
 async def test_client_auth(mocker):
 
     req = httpx.Request('GET', 'https://example.com')
@@ -59,7 +57,6 @@ async def test_client_auth(mocker):
     authenticate.assert_called_once()
 
 
-@pytest.mark.asyncio
 async def test_client_error(mocker):
     req = httpx.Request('GET', 'https://example.com')
     res = httpx.Response(500)
@@ -80,7 +77,15 @@ async def test_client_error(mocker):
             ...
 
 
-@pytest.mark.asyncio
+def test_client_headers():
+    server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
+    server.headers['Authorization'] = 'Bot 123'  # like discord
+
+    client = MCPClient()
+    headers = client.headers(server, headers=httpx.Headers())
+    assert headers['authorization'] == 'Bot 123'
+
+
 async def test_refresh_token(mocker):
     token = OAuthToken(access_token='xxx')
 
@@ -105,7 +110,6 @@ async def test_refresh_token(mocker):
     exchange_refresh_token.assert_called_once()
 
 
-@pytest.mark.asyncio
 async def test_refresh_failed(mocker):
     credentials_manager = MockCredentialsManager()
     client = MCPClient(credentials_manager=credentials_manager)
@@ -128,7 +132,6 @@ async def test_refresh_failed(mocker):
     exchange_refresh_token.assert_called_once()
 
 
-@pytest.mark.asyncio
 async def test_client_authenticate():
     credentials_manager = MockCredentialsManager()
     server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
@@ -136,7 +139,6 @@ async def test_client_authenticate():
     assert await client.authenticate(server) is None
 
 
-@pytest.mark.asyncio
 async def test_client_session(mocker):
     server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
     session = MCPClientSession(

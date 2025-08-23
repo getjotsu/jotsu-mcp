@@ -11,8 +11,6 @@ from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 logger = logging.getLogger(__name__)
 
 
-
-
 class ToolMixin(ABC):
     @abstractmethod
     def _get_session(self, *args, **kwargs) -> MCPClientSession:
@@ -30,7 +28,6 @@ class ToolMixin(ABC):
                 return tool
         return None
 
-
     async def handle_tool(
             self, data: dict, *,
             node: WorkflowMCPNode, sessions: WorkflowSessionManager, **_kwargs
@@ -41,15 +38,14 @@ class ToolMixin(ABC):
         if not tool:
             raise JotsuException(f'MCP Tool not found: {node.name}')
 
-        schema = tool.inputSchema or {}
         try:
-            jsonschema.validate(instance=data, schema=schema)
+            jsonschema.validate(instance=data, schema=tool.inputSchema)
         except jsonschema.ValidationError as e:
             raise JotsuException(e)
 
         # tools likely only use the top-level properties
         arguments = {}
-        for prop in schema["properties"]:
+        for prop in tool.inputSchema.get('properties', []):
             if prop in data:
                 arguments[prop] = data[prop]
 
@@ -57,13 +53,19 @@ class ToolMixin(ABC):
         if result.isError:
             raise JotsuException(f"Error calling tool '{node.name}': {result.content[0].text}.")
 
-        for content in result.content:
-            message_type = content.type
-            if message_type == 'text':
-                # Tools don't have a mime type and only text is currently supported.
-                data = self._update_text(data, text=content.text, member=node.member or node.name)
+        if result.structuredContent:
+            if node.member:
+                data[node.member] = result.structuredContent
             else:
-                logger.warning(
-                    "Invalid message type '%s' for tool '%s'.", message_type, node.name
-                )
+                data.update(result.structuredContent)
+        else:
+            for content in result.content:
+                message_type = content.type
+                if message_type == 'text':
+                    # Tools don't have a mime type and only text is currently supported.
+                    data = self._update_text(data, text=content.text, member=node.member or node.name)
+                else:
+                    logger.warning(
+                        "Invalid message type '%s' for tool '%s'.", message_type, node.name
+                    )
         return data

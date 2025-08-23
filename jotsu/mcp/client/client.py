@@ -65,9 +65,8 @@ class MCPClient:
                 await session.initialize()
                 yield session
 
-
     @staticmethod
-    def _headers(server: WorkflowServer, headers: httpx.Headers | None):
+    def headers(server: WorkflowServer, headers: httpx.Headers | None):
         if not headers:
             headers = httpx.Headers()
             if server.headers:
@@ -79,7 +78,7 @@ class MCPClient:
             self, server: WorkflowServer, headers: httpx.Headers | None = None,
             *, timeout: timedelta = timedelta(seconds=30)
     ):
-        headers = self._headers(server, headers)
+        headers = self.headers(server, headers)
         if 'Authorization' not in headers:
             access_token = await self.credentials.get_access_token(server.id)
             if access_token:

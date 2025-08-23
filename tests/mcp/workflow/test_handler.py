@@ -4,7 +4,7 @@ import pytest
 from mcp.types import (
     ReadResourceResult, TextResourceContents, BlobResourceContents,
     GetPromptResult, PromptMessage, TextContent, ImageContent,
-    CallToolResult
+    CallToolResult, Tool
 )
 
 from jotsu.mcp.types.exceptions import JotsuException
@@ -15,7 +15,6 @@ from jotsu.mcp.workflow import WorkflowEngine
 from jotsu.mcp.workflow.handler import WorkflowHandler
 
 
-@pytest.mark.anyio
 async def test_handler_resource(mocker):
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='data://resource', type='resource', server_id='test')
@@ -35,7 +34,6 @@ async def test_handler_resource(mocker):
     assert await handler.handle_resource({}, sessions=sessions, node=node) == {'data://resource': 'xxx'}
 
 
-@pytest.mark.anyio
 async def test_handler_resource_json(mocker):
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='data://resource', type='resource', server_id='test')
@@ -55,7 +53,6 @@ async def test_handler_resource_json(mocker):
     assert await handler.handle_resource({}, sessions=sessions, node=node) == {'foo': 'baz'}
 
 
-@pytest.mark.anyio
 async def test_handler_resource_json_member(mocker):
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='data://resource', type='resource', server_id='test', member='foo')
@@ -75,9 +72,8 @@ async def test_handler_resource_json_member(mocker):
     assert await handler.handle_resource({}, sessions=sessions, node=node) == {'foo': {'bar': 'baz'}}
 
 
-@pytest.mark.anyio
 async def test_handler_resource_not_found(mocker):
-    logger_warning = mocker.patch('jotsu.mcp.workflow.handler.logger.warning')
+    logger_warning = mocker.patch('jotsu.mcp.workflow.handler.handler.logger.warning')
 
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='data://resource', type='resource', server_id='test')
@@ -98,7 +94,6 @@ async def test_handler_resource_not_found(mocker):
     logger_warning.assert_called_once()
 
 
-@pytest.mark.anyio
 async def test_handler_prompt(mocker):
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='prompt', type='prompt', server_id='test')
@@ -118,9 +113,8 @@ async def test_handler_prompt(mocker):
     assert await handler.handle_prompt({}, sessions=sessions, node=node) == {'prompt': 'xxx'}
 
 
-@pytest.mark.anyio
 async def test_handler_prompt_bad_type(mocker):
-    logger_warning = mocker.patch('jotsu.mcp.workflow.handler.logger.warning')
+    logger_warning = mocker.patch('jotsu.mcp.workflow.handler.handler.logger.warning')
 
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='prompt', type='prompt', server_id='test')
@@ -141,28 +135,106 @@ async def test_handler_prompt_bad_type(mocker):
     logger_warning.assert_called_once()
 
 
-@pytest.mark.anyio
 async def test_handler_tool(mocker):
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
 
+    input_schema = {
+        'type': 'object',
+        'properties': {
+            'name': {
+                'type': 'string'
+            }
+        },
+        'required': ['name']
+    }
+
     handler = WorkflowHandler(engine=engine)
     session = mocker.AsyncMock()
+    session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema=input_schema)])
     session.call_tool.return_value = CallToolResult(isError=False, content=[TextContent(type='text', text='xxx')])
 
     sessions = mocker.Mock()
     sessions.get.return_value = session
 
-    assert await handler.handle_tool({}, sessions=sessions, node=node) == {'test-tool': 'xxx'}
+    res = await handler.handle_tool({'name': 'foo'}, sessions=sessions, node=node)
+    assert res == {'name': 'foo', 'test-tool': 'xxx'}
 
 
-@pytest.mark.anyio
+async def test_handler_tool_structured_content(mocker):
+    engine = WorkflowEngine([])
+    node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
+
+    handler = WorkflowHandler(engine=engine)
+    session = mocker.AsyncMock()
+    session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema={})])
+
+    call_tool_result = CallToolResult(
+        isError=False, content=[TextContent(type='text', text='{"a": "b"}')]
+    )
+    call_tool_result.structuredContent = {'a': 'b'}
+    session.call_tool.return_value = call_tool_result
+
+    sessions = mocker.Mock()
+    sessions.get.return_value = session
+
+    res = await handler.handle_tool({}, sessions=sessions, node=node)
+    assert res == {'a': 'b'}
+
+
+async def test_handler_tool_structured_content_member(mocker):
+    engine = WorkflowEngine([])
+    node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test', member='foo')
+
+    handler = WorkflowHandler(engine=engine)
+    session = mocker.AsyncMock()
+    session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema={})])
+
+    call_tool_result = CallToolResult(
+        isError=False, content=[TextContent(type='text', text='{"a": "b"}')]
+    )
+    call_tool_result.structuredContent = {'a': 'b'}
+    session.call_tool.return_value = call_tool_result
+
+    sessions = mocker.Mock()
+    sessions.get.return_value = session
+
+    res = await handler.handle_tool({}, sessions=sessions, node=node)
+    assert res == {'foo': {'a': 'b'}}
+
+
+async def test_handler_tool_schema_validation_error(mocker):
+    engine = WorkflowEngine([])
+    node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
+
+    input_schema = {
+        'type': 'object',
+        'properties': {
+            'name': {
+                'type': 'string'
+            }
+        },
+        'required': ['name']
+    }
+
+    handler = WorkflowHandler(engine=engine)
+    session = mocker.AsyncMock()
+    session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema=input_schema)])
+
+    sessions = mocker.Mock()
+    sessions.get.return_value = session
+
+    with pytest.raises(JotsuException):
+        await handler.handle_tool({}, sessions=sessions, node=node)
+
+
 async def test_handler_tool_error(mocker):
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
 
     handler = WorkflowHandler(engine=engine)
     session = mocker.AsyncMock()
+    session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema={})])
     session.call_tool.return_value = CallToolResult(isError=True, content=[TextContent(type='text', text='error?')])
 
     sessions = mocker.Mock()
@@ -172,10 +244,21 @@ async def test_handler_tool_error(mocker):
         await handler.handle_tool({}, sessions=sessions, node=node)
 
 
-@pytest.mark.anyio
-async def test_handler_tool_bad_type(mocker):
-    logger_warning = mocker.patch('jotsu.mcp.workflow.handler.logger.warning')
+async def test_handler_tool_get_none(mocker):
+    engine = WorkflowEngine([])
+    node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
 
+    handler = WorkflowHandler(engine=engine)
+    session = mocker.AsyncMock()
+    session.list_tools.return_value = mocker.Mock(tools=[])
+
+    sessions = mocker.Mock()
+    sessions.get.return_value = session
+    with pytest.raises(JotsuException):
+        await handler.handle_tool({}, sessions=sessions, node=node)
+
+
+async def test_handler_tool_bad_type(mocker):
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
 
@@ -184,6 +267,7 @@ async def test_handler_tool_bad_type(mocker):
     content = ImageContent(type='image', data='xxx', mimeType='image/png')
 
     session = mocker.AsyncMock()
+    session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema={})])
     session.call_tool.return_value = CallToolResult(isError=False, content=[content])
 
     sessions = mocker.Mock()
@@ -191,10 +275,7 @@ async def test_handler_tool_bad_type(mocker):
 
     assert await handler.handle_tool({}, sessions=sessions, node=node) == {}
 
-    logger_warning.assert_called_once()
 
-
-@pytest.mark.anyio
 async def test_handler_bad_session(mocker):
     engine = WorkflowEngine([])
     node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
@@ -207,7 +288,6 @@ async def test_handler_bad_session(mocker):
         await handler.handle_tool({}, sessions=sessions, node=node)
 
 
-@pytest.mark.anyio
 async def test_handler_switch():
     engine = WorkflowEngine([])
     node = WorkflowSwitchNode(
@@ -228,7 +308,6 @@ async def test_handler_switch():
     assert [x.model_dump() for x in results] == expected
 
 
-@pytest.mark.anyio
 async def test_handler_loop():
     engine = WorkflowEngine([])
     node = WorkflowLoopNode(id='1', name='test-loop', expr='lines', edges=['e1', 'e2'])
@@ -248,7 +327,6 @@ async def test_handler_loop():
     assert [x.model_dump() for x in results] == expected
 
 
-@pytest.mark.anyio
 async def test_handler_loop_rules():
     engine = WorkflowEngine([])
     node = WorkflowLoopNode(
@@ -271,7 +349,6 @@ async def test_handler_loop_rules():
     assert [x.model_dump() for x in results] == expected
 
 
-@pytest.mark.anyio
 async def test_handler_function():
     engine = WorkflowEngine([])
     node = WorkflowFunctionNode(
@@ -291,7 +368,6 @@ async def test_handler_function():
     assert [x.model_dump() for x in results] == expected
 
 
-@pytest.mark.anyio
 async def test_handler_function_per_edge():
     engine = WorkflowEngine([])
     node = WorkflowFunctionNode(
@@ -310,7 +386,6 @@ async def test_handler_function_per_edge():
     assert [x.model_dump() for x in results] == expected
 
 
-@pytest.mark.anyio
 async def test_handler_function_empty():
     engine = WorkflowEngine([])
     node = WorkflowFunctionNode(
@@ -323,7 +398,6 @@ async def test_handler_function_empty():
     assert [x.model_dump() for x in results] == []
 
 
-@pytest.mark.anyio
 async def test_handler_anthropic(mocker):
     from anthropic.types.beta.beta_message import BetaMessage
     from anthropic.types.beta.beta_text_block import BetaTextBlock
@@ -359,7 +433,6 @@ async def test_handler_anthropic(mocker):
     anthropic_client_create.assert_called_once()
 
 
-@pytest.mark.anyio
 async def test_handler_anthropic_schema(mocker):
     from anthropic.types.beta.beta_message import BetaMessage
     from anthropic.types.beta.beta_text_block import BetaTextBlock
@@ -402,7 +475,6 @@ async def test_handler_anthropic_schema(mocker):
     anthropic_client_create.assert_called_once()
 
 
-@pytest.mark.anyio
 async def test_handler_anthropic_servers(mocker):
     from anthropic.types.beta.beta_message import BetaMessage
     from anthropic.types.beta.beta_text_block import BetaTextBlock

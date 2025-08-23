@@ -21,6 +21,7 @@ from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 from .tools import ToolMixin
 
 if typing.TYPE_CHECKING:
+    # noinspection PyUnusedImports
     from jotsu.mcp.workflow.engine import WorkflowEngine
 
 logger = logging.getLogger(__name__)
@@ -58,12 +59,12 @@ class WorkflowHandler(ToolMixin):
             messages = []
             prompt = data.get('prompt', node.prompt)
             if prompt:
-                messages.append({'role': 'user', 'content': utils.pybars_render(prompt, {'data': data})})
+                messages.append({'role': 'user', 'content': utils.pybars_render(prompt, data)})
 
         kwargs = {}
         system = data.get('system', node.system)
         if system:
-            kwargs['system'] = utils.pybars_render(system, {'data': data})
+            kwargs['system'] = utils.pybars_render(system, data)
         if node.use_json_schema or (node.use_json_schema is None and node.json_schema):
             tool = {
                 'name': 'structured_output',
