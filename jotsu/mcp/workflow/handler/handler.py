@@ -11,27 +11,20 @@ from jotsu.mcp.types.rules import Rule
 from jotsu.mcp.types.models import (
     WorkflowMCPNode,
     WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode,
-    WorkflowAnthropicNode, WorkflowModelUsage, Workflow, WorkflowRulesNode, WorkflowTransformNode
+    WorkflowRulesNode, WorkflowTransformNode
 )
 from jotsu.mcp.client.client import MCPClientSession
 
 from jotsu.mcp.workflow import utils
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
+from .anthropic import AnthropicMixin
 from .tools import ToolMixin
 
 if typing.TYPE_CHECKING:
-    # noinspection PyUnusedImports
-    from jotsu.mcp.workflow.engine import WorkflowEngine
+    from jotsu.mcp.workflow.engine import WorkflowEngine  # type: ignore
 
 logger = logging.getLogger(__name__)
-
-
-JSON_SCHEMA = {
-    '$schema': 'https://json-schema.org/draft/2020-12/schema',
-    'type': 'object',
-    'additionalProperties': True
-}
 
 
 class WorkflowHandlerResult(pydantic.BaseModel):
@@ -39,67 +32,13 @@ class WorkflowHandlerResult(pydantic.BaseModel):
     data: dict
 
 
-class WorkflowHandler(ToolMixin):
+class WorkflowHandler(ToolMixin, AnthropicMixin):
     def __init__(self, engine: 'WorkflowEngine'):
         self._engine = engine
 
-    async def handle_anthropic(
-            self, data: dict, *, action_id: str, workflow: Workflow, node: WorkflowAnthropicNode,
-            usage: typing.List[WorkflowModelUsage], **_kwargs
-    ):
-        from anthropic.types.beta.beta_message import BetaMessage
-        from anthropic.types.beta.beta_tool_use_block import BetaToolUseBlock
-        from anthropic.types.beta.beta_request_mcp_server_url_definition_param import \
-            BetaRequestMCPServerURLDefinitionParam
-
-        client = self._engine.anthropic_client
-
-        messages = data.get('messages', None)
-        if messages is None:
-            messages = []
-            prompt = data.get('prompt', node.prompt)
-            if prompt:
-                messages.append({'role': 'user', 'content': utils.pybars_render(prompt, data)})
-
-        kwargs = {}
-        system = data.get('system', node.system)
-        if system:
-            kwargs['system'] = utils.pybars_render(system, data)
-        if node.use_json_schema or (node.use_json_schema is None and node.json_schema):
-            tool = {
-                'name': 'structured_output',
-                'input_schema': node.json_schema if node.json_schema else JSON_SCHEMA
-            }
-            kwargs['tools'] = [tool]
-        if workflow.servers:
-            kwargs['mcp_servers'] = []
-            kwargs['betas'] = ['mcp-client-2025-04-04']
-            for server in workflow.servers:
-                param = BetaRequestMCPServerURLDefinitionParam(name=server.name, type='url', url=str(server.url))
-                authorization = server.headers.get('authorization')
-                if authorization:
-                    param['authorization_token'] = authorization
-                kwargs['mcp_servers'].append(param)
-
-        message: BetaMessage = await client.beta.messages.create(
-            max_tokens=node.max_tokens,
-            model=node.model,
-            messages=messages,
-            **kwargs
-        )
-
-        usage.append(WorkflowModelUsage(ref_id=action_id, model=node.model, **message.usage.model_dump(mode='json')))
-
-        if node.include_message_in_output:
-            data.update(message.model_dump(mode='json'))
-
-        if node.json_schema:
-            for content in message.content:
-                if content.type == 'tool_use' and content.name == 'structured_output':
-                    content = typing.cast(BetaToolUseBlock, content)
-                    data.update(typing.cast(dict, content.input))  # object type
-
-        return data
+    @property
+    def engine(self) -> 'WorkflowEngine':
+        return self._engine
 
     async def handle_resource(
             self, data: dict, *,
