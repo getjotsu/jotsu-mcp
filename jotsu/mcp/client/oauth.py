@@ -11,8 +11,9 @@ from mcp.server.auth.handlers.token import (
     RefreshTokenRequest
 )
 from mcp.server.auth.provider import RefreshToken
-from mcp.shared.auth import OAuthToken, OAuthClientInformationFull
+from mcp.shared.auth import OAuthToken
 
+from jotsu.mcp.types.shared import OAuthClientInformationFullWithBasicAuth
 from . import utils
 
 logger = logging.getLogger(__name__)
@@ -161,7 +162,7 @@ class OAuth2AuthorizationCodeClient:
     @classmethod
     async def dynamic_client_registration(
             cls, registration_endpoint: str, redirect_uris: typing.List[str]
-    ) -> OAuthClientInformationFull:
+    ) -> OAuthClientInformationFullWithBasicAuth:
         """
         Dynamic Client Registration
         :param registration_endpoint:
@@ -176,5 +177,9 @@ class OAuth2AuthorizationCodeClient:
 
             client = res.json()
             assert 'code' in client['response_types']
-            logger.debug('Client registration successful: %s', res.text)
-            return OAuthClientInformationFull(**client)
+            logger.debug(
+                'Client registration successful: %s [%s]',
+                res.text, client.get('token_endpoint_auth_method')
+            )
+
+            return OAuthClientInformationFullWithBasicAuth(**client)

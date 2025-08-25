@@ -60,7 +60,8 @@ class LocalMCPClient(MCPClient):
 
         redirect_uri = urllib.parse.quote('http://localhost:8001/')
         url = f'{server_metadata.authorization_endpoint}?client_id={client_info.client_id}' + \
-              f'&response_type=code&code_challenge={code_challenge}&redirect_uri={redirect_uri}'
+              f'&response_type=code&code_challenge={code_challenge}&code_challenge_method=S256' + \
+              f'&redirect_uri={redirect_uri}'
         print(f'Opening a link in your default browser: {url}')
         webbrowser.open(url)
 
@@ -79,6 +80,7 @@ class LocalMCPClient(MCPClient):
             authorization_endpoint=server_metadata.authorization_endpoint,
             token_endpoint=server_metadata.token_endpoint
         )
+
         token = await client.exchange_authorization_code(
             code=code[0],
             code_verifier=code_verifier,
