@@ -4,8 +4,7 @@ import typing
 from jotsu.mcp.types import WorkflowModelUsage, Workflow
 from jotsu.mcp.types.models import WorkflowAnthropicNode
 from jotsu.mcp.workflow import utils
-from .utils import get_messages
-
+from .utils import get_messages, update_data_from_text, update_data_from_json
 
 logger = logging.getLogger(__name__)
 
@@ -75,13 +74,10 @@ class AnthropicMixin:
             for content in message.content:
                 if content.type == 'tool_use' and content.name == 'structured_output':
                     content = typing.cast(BetaToolUseBlock, content)
-                    data.update(typing.cast(dict, content.input))  # object type
+                    update_data_from_json(data, content.input, node=node)
         else:
             for content in message.content:
                 if content.type == 'text':
-                    member = node.member or node.name
-                    text = data.get(node.member or node.name, '')
-                    text += content.text
-                    data[member] = text
+                    update_data_from_text(data, content.text, node=node)
 
         return data

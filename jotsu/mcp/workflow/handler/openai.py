@@ -1,12 +1,10 @@
-import json
 import logging
 import typing
 
 from jotsu.mcp.types import WorkflowModelUsage
 from jotsu.mcp.types.models import WorkflowOpenAINode
 from jotsu.mcp.workflow import utils
-from .utils import get_messages
-
+from .utils import get_messages, update_data_from_text, update_data_from_json
 
 logger = logging.getLogger(__name__)
 
@@ -86,15 +84,12 @@ class OpenAIMixin:
                 if output.type == 'message':
                     for content in output.content:
                         if content.type == 'output_text':
-                            data.update(json.loads(content.text))
+                            update_data_from_json(data, content.text, node=node)
         else:
             for output in response.output:
                 if output.type == 'message':
                     for content in output.content:
                         if content.type == 'output_text':
-                            member = node.member or node.name
-                            text = data.get(node.member or node.name, '')
-                            text += content.text
-                            data[member] = text
+                            update_data_from_text(data, content.text, node=node)
 
         return data

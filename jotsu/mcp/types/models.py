@@ -109,33 +109,30 @@ class WorkflowFunctionNode(WorkflowRulesNode):
     function: str
 
 
-class WorkflowAnthropicNode(WorkflowNode):
+class WorkflowModelNode(WorkflowNode):
+    model: str
+    prompt: str | None = None
+    messages: list[str] | None = None
+    system: str | None = None
+    max_tokens: int = 1024
+    use_json_schema: typing.Optional[bool] = None
+    json_schema: typing.Optional[dict] = None
+    include_message_in_output: bool = True
+    # Where the output goes in the result.
+    member: str | None = None
+
+
+class WorkflowAnthropicNode(WorkflowModelNode):
     type: typing.Literal['anthropic'] = 'anthropic'
-    model: str
-    prompt: str | None = None
-    messages: list[str] | None = None
-    system: str | None = None
     servers: typing.Literal['*'] | list[str] | None = None
-    max_tokens: int = 1024
-    use_json_schema: typing.Optional[bool] = None
-    json_schema: typing.Optional[dict] = None
-    include_message_in_output: bool = True
-    # Where the output goes in the result.
-    member: str | None = None
 
 
-class WorkflowOpenAINode(WorkflowNode):
+class WorkflowOpenAINode(WorkflowModelNode):
     type: typing.Literal['openai'] = 'openai'
-    model: str
-    prompt: str | None = None
-    messages: list[str] | None = None
-    system: str | None = None
-    max_tokens: int = 1024
-    use_json_schema: typing.Optional[bool] = None
-    json_schema: typing.Optional[dict] = None
-    include_message_in_output: bool = True
-    # Where the output goes in the result.
-    member: str | None = None
+
+
+class WorkflowCloudflareNode(WorkflowModelNode):
+    type: typing.Literal['cloudflare'] = 'cloudflare'
 
 
 class WorkflowServer(pydantic.BaseModel):
@@ -163,7 +160,7 @@ NodeUnion = typing.Annotated[
     typing.Union[
         WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode,
         WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode, WorkflowTransformNode,
-        WorkflowAnthropicNode, WorkflowOpenAINode, WorkflowNode
+        WorkflowAnthropicNode, WorkflowOpenAINode, WorkflowCloudflareNode, WorkflowNode
     ],
     'type'
 ]

@@ -19,6 +19,7 @@ from jotsu.mcp.workflow import utils
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
 from .anthropic import AnthropicMixin
+from .cloudflare import CloudflareMixin
 from .openai import OpenAIMixin
 from .tools import ToolMixin
 
@@ -33,7 +34,7 @@ class WorkflowHandlerResult(pydantic.BaseModel):
     data: dict
 
 
-class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin):
+class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin):
     def __init__(self, engine: 'WorkflowEngine'):
         self._engine = engine
 

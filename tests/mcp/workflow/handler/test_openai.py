@@ -1,7 +1,5 @@
 import os
 
-from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
-
 from jotsu.mcp.types import Workflow
 from jotsu.mcp.types.models import WorkflowOpenAINode
 from jotsu.mcp.workflow import WorkflowEngine
@@ -9,6 +7,8 @@ from jotsu.mcp.workflow import WorkflowEngine
 
 async def test_handler_openai(mocker):
     from openai.types.responses import Response, ResponseOutputMessage, ResponseOutputText, ResponseUsage
+    from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
+
     os.environ['OPENAI_API_KEY'] = 'sk_key'
 
     content = ResponseOutputText(type='output_text', text='xxx', annotations=[])
@@ -55,6 +55,8 @@ async def test_handler_openai(mocker):
 
 async def test_handler_openai_schema(mocker):
     from openai.types.responses import Response, ResponseOutputMessage, ResponseOutputText, ResponseUsage
+    from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
+
     os.environ['OPENAI_API_KEY'] = 'sk_key'
 
     content = ResponseOutputText(type='output_text', text='{"foo": "baz"}', annotations=[])
