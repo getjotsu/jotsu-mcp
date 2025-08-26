@@ -19,6 +19,7 @@ from jotsu.mcp.workflow import utils
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
 from .anthropic import AnthropicMixin
+from .openai import OpenAIMixin
 from .tools import ToolMixin
 
 if typing.TYPE_CHECKING:
@@ -32,13 +33,9 @@ class WorkflowHandlerResult(pydantic.BaseModel):
     data: dict
 
 
-class WorkflowHandler(ToolMixin, AnthropicMixin):
+class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin):
     def __init__(self, engine: 'WorkflowEngine'):
         self._engine = engine
-
-    @property
-    def engine(self) -> 'WorkflowEngine':
-        return self._engine
 
     async def handle_resource(
             self, data: dict, *,

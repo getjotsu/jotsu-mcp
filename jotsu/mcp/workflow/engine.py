@@ -132,11 +132,8 @@ class WorkflowEngine(FastMCP):
             self.add_resource(resource)
 
     @property
-    def anthropic_client(self):
-        if not hasattr(self, '_anthropic'):
-            from anthropic import AsyncAnthropic
-            setattr(self, '_anthropic', AsyncAnthropic())
-        return getattr(self, '_anthropic')
+    def handler(self) -> WorkflowHandler:
+        return self._handler
 
     def _get_workflow(self, name: str) -> Workflow | None:
         for workflow in self._workflows:

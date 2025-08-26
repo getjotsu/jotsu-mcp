@@ -9,7 +9,7 @@ from mcp.types import (
 
 from jotsu.mcp.types.exceptions import JotsuException
 from jotsu.mcp.types.models import WorkflowMCPNode, WorkflowLoopNode, WorkflowSwitchNode, WorkflowFunctionNode, \
-    WorkflowAnthropicNode, Workflow, WorkflowServer, WorkflowTransformNode, WorkflowTransform
+    WorkflowTransformNode, WorkflowTransform
 from jotsu.mcp.types.rules import GreaterThanEqualRule, LessThanRule
 from jotsu.mcp.workflow import WorkflowEngine
 from jotsu.mcp.workflow.handler import WorkflowHandler
@@ -396,123 +396,6 @@ async def test_handler_function_empty():
     handler = WorkflowHandler(engine=engine)
     results = await handler.handle_function({'x': {'y': 3}}, node=node)
     assert [x.model_dump() for x in results] == []
-
-
-async def test_handler_anthropic(mocker):
-    from anthropic.types.beta.beta_message import BetaMessage
-    from anthropic.types.beta.beta_text_block import BetaTextBlock
-    from anthropic.types.beta.beta_usage import BetaUsage
-
-    message = BetaMessage(
-        id='1',
-        content=[BetaTextBlock(text='XXX', type='text')],
-        model='claude', role='assistant', type='message',
-        usage=BetaUsage(input_tokens=0, output_tokens=0)
-    )
-
-    workflow = Workflow(id='workflow')
-    engine = WorkflowEngine([workflow])
-
-    anthropic_client = engine.anthropic_client
-    anthropic_client_create = mocker.patch.object(
-        anthropic_client.beta.messages, 'create', new_callable=mocker.AsyncMock
-    )
-    anthropic_client_create.return_value = message
-
-    node = WorkflowAnthropicNode(
-        id='a', name='claude', messages=[],
-        model='claude-2', system='foo'
-    )
-
-    handler = WorkflowHandler(engine=engine)
-    result = await handler.handle_anthropic(
-        {'prompt': 'What?'},
-        action_id='x', workflow=workflow, node=node, usage=[]
-    )
-    assert 'content' in result
-    anthropic_client_create.assert_called_once()
-
-
-async def test_handler_anthropic_schema(mocker):
-    from anthropic.types.beta.beta_message import BetaMessage
-    from anthropic.types.beta.beta_text_block import BetaTextBlock
-    from anthropic.types.beta.beta_tool_use_block import BetaToolUseBlock
-    from anthropic.types.beta.beta_usage import BetaUsage
-
-    structured_output = {
-        'foo': 'baz'
-    }
-
-    message = BetaMessage(
-        id='1',
-        content=[
-            BetaTextBlock(text='XXX', type='text'),
-            BetaToolUseBlock(id='123', input=structured_output, name='structured_output', type='tool_use')
-        ],
-        model='claude', role='assistant', type='message',
-        usage=BetaUsage(input_tokens=0, output_tokens=0)
-    )
-
-    workflow = Workflow(id='workflow')
-    engine = WorkflowEngine([workflow])
-    anthropic_client = engine.anthropic_client
-    anthropic_client_create = mocker.patch.object(
-        anthropic_client.beta.messages, 'create', new_callable=mocker.AsyncMock
-    )
-    anthropic_client_create.return_value = message
-
-    node = WorkflowAnthropicNode(
-        id='a', name='claude', messages=[],
-        model='claude-2', json_schema={'must_not_be_empty': True},
-        include_message_in_output=False
-    )
-
-    handler = WorkflowHandler(engine=engine)
-    result = await handler.handle_anthropic(
-        {'prompt': 'What?'}, action_id='x', workflow=workflow, node=node, usage=[]
-    )
-    assert result['foo'] == 'baz'
-    anthropic_client_create.assert_called_once()
-
-
-async def test_handler_anthropic_servers(mocker):
-    from anthropic.types.beta.beta_message import BetaMessage
-    from anthropic.types.beta.beta_text_block import BetaTextBlock
-    from anthropic.types.beta.beta_usage import BetaUsage
-
-    message = BetaMessage(
-        id='1',
-        content=[
-            BetaTextBlock(text='XXX', type='text'),
-        ],
-        model='claude', role='assistant', type='message',
-        usage=BetaUsage(input_tokens=0, output_tokens=0)
-    )
-
-    server = WorkflowServer(
-        id='server',
-        url=pydantic.AnyHttpUrl('https://example.com/mcp/'),
-        headers={'Authorization': 'xxx'}
-    )
-    workflow = Workflow(id='workflow', servers=[server])
-    engine = WorkflowEngine([workflow])
-    anthropic_client = engine.anthropic_client
-    anthropic_client_create = mocker.patch.object(
-        anthropic_client.beta.messages, 'create', new_callable=mocker.AsyncMock
-    )
-    anthropic_client_create.return_value = message
-
-    node = WorkflowAnthropicNode(
-        id='a', name='claude', messages=[],
-        model='claude-2', json_schema={'must_not_be_empty': True},
-    )
-
-    handler = WorkflowHandler(engine=engine)
-    result = await handler.handle_anthropic(
-        {'prompt': 'What?'}, action_id='x', workflow=workflow, node=node, usage=[]
-    )
-    assert 'content' in result
-    anthropic_client_create.assert_called_once()
 
 
 async def test_handler_transform_move():

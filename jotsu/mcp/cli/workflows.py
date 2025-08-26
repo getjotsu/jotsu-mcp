@@ -68,6 +68,7 @@ async def run(path: str, no_format: bool, data: str):
 
     async with aiofiles.open(path) as f:
         content = await f.read()
+
     flow = Workflow(**json.loads(content))
 
     engine = WorkflowEngine(flow, client=LocalMCPClient())

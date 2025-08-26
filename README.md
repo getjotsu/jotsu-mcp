@@ -15,7 +15,7 @@ Create an empty workflow.
 jotsu-mcp workflow init
 ```
 
-The initialization command creates a workflow 'workflow.json' in the current directory.
+The initialization command creates a workflow file 'workflow.json' in the current directory.
 
 Run it:
 ```shell
@@ -23,6 +23,10 @@ jotsu-mcp workflow run ./workflow.json
 ```
 
 The output is only the start and end messages since the workflow doesn't have any nodes.
+
+
+## Hello MCP
+The workflow can call a tool from an MCP server.   This allows you to use MCP with models that don't yet support it (really any model other than Claude).
 
 Add the following server entry:
 ```json
@@ -38,20 +42,27 @@ NOTE: don't forget the path `/mcp/` on the URL.
 This server is a publicly available MCP server (with no authentication) that has a couple of resources and a tool.
 (The code is available [here](https://github.com/getjotsu/mcp-servers/tree/main/hello)).
 
-Next add nodes for the server resources.
+Next add a node for a server tool.
 
 ```json
 [
-    {"id":  "get_greeting", "type": "resource", "name": "resource://greeting", "server_id":  "hello", "edges": ["get_config"]},
-    {"id":  "get_config", "type": "resource", "name": "data://config", "server_id":  "hello", "edges": ["greet"]},
     {"id":  "greet", "type":  "tool", "name": "greet", "server_id":  "hello"}
 ]
 ```
 
-Finally, add some initial data that the 'greet' tool needs.
+Add some initial data that the 'greet' tool needs:
 ```json
 {"name": "World"}
 ```
+and tell the workflow where to start:
+```
+"start_node_id": "greet"
+```
+
+Finally, add a 'generic' node at the end.
+Generic nodes are application-specific - meaning the workflow only handles them by yielding the data -
+and are generally used for output and/or debugging.   
+The type can be any string not already used by the workflow.  In this case, 'output'.
 
 <details>
 <summary>Full Workflow</summary>
@@ -66,10 +77,10 @@ Finally, add some initial data that the 'greet' tool needs.
         "type": "manual",
         "metadata": null
     },
+    "start_node_id": "greet",
     "nodes": [
-        {"id":  "get_greeting", "type": "resource", "name": "resource://greeting", "server_id":  "hello", "edges": ["get_config"]},
-        {"id":  "get_config", "type": "resource", "name": "data://config", "server_id":  "hello", "edges": ["greet"]},
-        {"id":  "greet", "type":  "tool", "name": "greet", "server_id":  "hello"}
+        {"id":  "greet", "type":  "tool", "name": "greet", "server_id":  "hello", "edges":  ["output"]},
+        {"id":  "output", "type":  "output", "name": "The result"}
     ],
     "servers": [
         {
@@ -85,8 +96,29 @@ Finally, add some initial data that the 'greet' tool needs.
 
 </details>
 
-Running it again generates:
+Running this workflow again generates a lot more data, but specifically there is a line similar to:
 
+```json
+{
+  "action": "default",
+  "timestamp": 132462.392532502,
+  "id": "01k3h80zcaz050eg7080r3fnv7",
+  "run_id": "01k3h80t6psmg0s5swsg4yke95",
+  "node": {
+    "id": "output",
+    "name": "The result",
+    "type": "output"
+  },
+  "data": {
+    "name": "World",
+    "greet": "Hello, World!"
+  }
+}
+```
+
+The data from this node acts as the 'result' of the workflow.
+Since workflows can have many branches there is one 'result', 
+instead there could be many such lines depending upon the actions the workflow took.
 
 ## Development
 

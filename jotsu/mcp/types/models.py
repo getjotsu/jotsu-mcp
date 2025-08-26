@@ -120,6 +120,22 @@ class WorkflowAnthropicNode(WorkflowNode):
     use_json_schema: typing.Optional[bool] = None
     json_schema: typing.Optional[dict] = None
     include_message_in_output: bool = True
+    # Where the output goes in the result.
+    member: str | None = None
+
+
+class WorkflowOpenAINode(WorkflowNode):
+    type: typing.Literal['openai'] = 'openai'
+    model: str
+    prompt: str | None = None
+    messages: list[str] | None = None
+    system: str | None = None
+    max_tokens: int = 1024
+    use_json_schema: typing.Optional[bool] = None
+    json_schema: typing.Optional[dict] = None
+    include_message_in_output: bool = True
+    # Where the output goes in the result.
+    member: str | None = None
 
 
 class WorkflowServer(pydantic.BaseModel):
@@ -147,7 +163,7 @@ NodeUnion = typing.Annotated[
     typing.Union[
         WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode,
         WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode, WorkflowTransformNode,
-        WorkflowAnthropicNode, WorkflowNode
+        WorkflowAnthropicNode, WorkflowOpenAINode, WorkflowNode
     ],
     'type'
 ]

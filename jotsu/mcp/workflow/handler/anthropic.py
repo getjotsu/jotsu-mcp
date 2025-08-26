@@ -1,25 +1,30 @@
 import logging
 import typing
-from abc import ABC, abstractmethod
 
 from jotsu.mcp.types import WorkflowModelUsage, Workflow
 from jotsu.mcp.types.models import WorkflowAnthropicNode
 from jotsu.mcp.workflow import utils
-from .utils import JSON_SCHEMA
-
-if typing.TYPE_CHECKING:
-    from jotsu.mcp.workflow import WorkflowEngine  # type: ignore
+from .utils import get_messages
 
 
 logger = logging.getLogger(__name__)
 
 
-class AnthropicMixin(ABC):
+JSON_SCHEMA = {
+    '$schema': 'https://json-schema.org/draft/2020-12/schema',
+    'type': 'object',
+    'additionalProperties': True
+}
+
+
+class AnthropicMixin:
 
     @property
-    @abstractmethod
-    def engine(self, *args, **kwargs) -> 'WorkflowEngine':
-        ...
+    def anthropic_client(self):
+        if not hasattr(self, '_anthropic'):
+            from anthropic import AsyncAnthropic
+            setattr(self, '_anthropic', AsyncAnthropic())
+        return getattr(self, '_anthropic')
 
     async def handle_anthropic(
             self, data: dict, *, action_id: str, workflow: Workflow, node: WorkflowAnthropicNode,
@@ -30,14 +35,9 @@ class AnthropicMixin(ABC):
         from anthropic.types.beta.beta_request_mcp_server_url_definition_param import \
             BetaRequestMCPServerURLDefinitionParam
 
-        client = self.engine.anthropic_client
+        client = self.anthropic_client
 
-        messages = data.get('messages', None)
-        if messages is None:
-            messages = []
-            prompt = data.get('prompt', node.prompt)
-            if prompt:
-                messages.append({'role': 'user', 'content': utils.pybars_render(prompt, data)})
+        messages = get_messages(data, node.prompt)
 
         kwargs = {}
         system = data.get('system', node.system)
@@ -76,5 +76,12 @@ class AnthropicMixin(ABC):
                 if content.type == 'tool_use' and content.name == 'structured_output':
                     content = typing.cast(BetaToolUseBlock, content)
                     data.update(typing.cast(dict, content.input))  # object type
+        else:
+            for content in message.content:
+                if content.type == 'text':
+                    member = node.member or node.name
+                    text = data.get(node.member or node.name, '')
+                    text += content.text
+                    data[member] = text
 
         return data
