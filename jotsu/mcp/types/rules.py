@@ -4,7 +4,7 @@ import typing
 import pydantic
 
 # noinspection SpellCheckingInspection
-type RuleType = typing.Literal[
+RuleType = typing.Literal[
     'any',
     'gt', 'lt', 'gte', 'lte', 'eq', 'neq',
     'between', 'contains',
@@ -118,7 +118,7 @@ class FalsyRule(pydantic.BaseModel):
         return not bool(value)
 
 
-type Rule = (
+Rule = (
     AnyRule |
     GreaterThanRule | LessThanRule | GreaterThanEqualRule | LessThanEqualRule |
     EqualRule | NotEqualRule | BetweenRule | ContainsRule | RegexMatchRule | RegexSearchRule |

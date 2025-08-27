@@ -15,9 +15,9 @@ Slug = typing.Annotated[
     str,
     pydantic.StringConstraints(pattern=r'^[a-z0-9_\-]+$', max_length=255)
 ]
-type WorkflowData = typing.Optional[typing.Dict[str, typing.Any]]
-type WorkflowMetadata = typing.Optional[typing.Dict[str, typing.Any]]
-type WorkflowJsonSchema = typing.Optional[typing.Dict[str, typing.Any]]
+WorkflowData = typing.Optional[typing.Dict[str, typing.Any]]
+WorkflowMetadata = typing.Optional[typing.Dict[str, typing.Any]]
+WorkflowJsonSchema = typing.Optional[typing.Dict[str, typing.Any]]
 
 
 class WorkflowEvent(pydantic.BaseModel):

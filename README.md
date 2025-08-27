@@ -124,5 +124,5 @@ instead there could be many such lines depending upon the actions the workflow t
 
 ```shell
 uv venv
-uv pip install .[dev,cli,anthropic]
+uv pip install '.[dev,cli,anthropic,openai,cloudflare]'
 ```
