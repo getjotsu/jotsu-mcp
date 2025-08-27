@@ -32,11 +32,16 @@ class WorkflowNode(pydantic.BaseModel):
     resources and prompts.
     """
     model_config = pydantic.ConfigDict(extra='allow')
-    id: Slug = pydantic.Field(default_factory=slug)
+    id: Slug
     name: str
     type: str
     metadata: WorkflowMetadata = None
     edges: typing.List[Slug | None] = pydantic.Field(default_factory=list)
+
+    def __init__(self, *, name: str, **data):
+        if 'id' not in data:
+            data['id'] = slug()
+        super().__init__(name=name, **data)
 
 
 class WorkflowRulesNode(WorkflowNode):
@@ -139,7 +144,7 @@ class WorkflowServer(pydantic.BaseModel):
     """ Servers are any streaming-http MCP Server that this workflow can use.
     When the workflow is started, each of these servers is queried for all available actions.
     """
-    id: Slug = pydantic.Field(default_factory=slug)
+    id: Slug
     name: str | None = None
     url: pydantic.AnyHttpUrl
     headers: typing.Dict[str, str] = pydantic.Field(default_factory=dict)
@@ -148,6 +153,11 @@ class WorkflowServer(pydantic.BaseModel):
     @pydantic.field_validator('headers', mode='before')
     def lowercase_headers(cls, value):  # noqa
         return {k.lower(): v for k, v in value.items()} if isinstance(value, dict) else value
+
+    def __init__(self, *, url: str, **data):
+        if 'id' not in data:
+            data['id'] = slug()
+        super().__init__(url=url, **data)
 
 
 class WorkflowServerFull(WorkflowServer):
@@ -167,7 +177,7 @@ NodeUnion = typing.Annotated[
 
 
 class Workflow(pydantic.BaseModel):
-    id: Slug = pydantic.Field(default_factory=slug)
+    id: Slug
     name: str | None = None
     description: str | None = None
     event: WorkflowEvent | None = None
@@ -178,6 +188,11 @@ class Workflow(pydantic.BaseModel):
     data: WorkflowData = None
     # General metadata for application use (NOT used by the workflow)
     metadata: WorkflowMetadata = None
+
+    def __init__(self, **data):
+        if 'id' not in data:
+            data['id'] = slug()
+        super().__init__(**data)
 
 
 class WorkflowModelUsage(pydantic.BaseModel):
