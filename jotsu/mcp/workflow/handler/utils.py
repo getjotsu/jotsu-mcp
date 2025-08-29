@@ -1,4 +1,5 @@
 import json
+import jsonata
 
 from jotsu.mcp.types.models import WorkflowModelNode
 from jotsu.mcp.workflow.utils import pybars_render
@@ -32,3 +33,8 @@ def update_data_from_text(data: dict, text: str, *, node: WorkflowModelNode):
     result = data.get(node.member or node.name, '')
     result += text
     data[member] = result
+
+
+def jsonata_value(data: dict, expr: str):
+    expr = jsonata.Jsonata(expr)
+    return expr.evaluate(data)

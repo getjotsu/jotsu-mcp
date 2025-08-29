@@ -30,7 +30,7 @@ def pybars_compiler():  # pragma: no coverage
 def pybars_render(source: str, data: any) -> str:
     compiler = pybars_compiler()
     template = compiler.compile(source)
-    return template(source, data)
+    return template(data)
 
 
 def path_set(data: dict, *, path: str, value):

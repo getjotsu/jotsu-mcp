@@ -2,7 +2,6 @@ import json
 import logging
 import typing
 
-import jsonata
 import pydantic
 from mcp.types import ReadResourceResult, GetPromptResult
 
@@ -18,9 +17,12 @@ from jotsu.mcp.client.client import MCPClientSession
 from jotsu.mcp.workflow import utils
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
+from .utils import jsonata_value
+
 from .anthropic import AnthropicMixin
 from .cloudflare import CloudflareMixin
 from .openai import OpenAIMixin
+from .pick import PickMixin
 from .tools import ToolMixin
 
 if typing.TYPE_CHECKING:
@@ -34,7 +36,7 @@ class WorkflowHandlerResult(pydantic.BaseModel):
     data: dict
 
 
-class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin):
+class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, PickMixin):
     def __init__(self, engine: 'WorkflowEngine'):
         self._engine = engine
 
@@ -78,7 +80,7 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin):
 
     def _handle_rules(self, node: WorkflowRulesNode, data: dict):
         results = []
-        value = self._jsonata_value(data, node.expr) if node.expr else data
+        value = jsonata_value(data, node.expr) if node.expr else data
         for i, edge in enumerate(node.edges):
             rule = self._get_rule(node.rules, i)
             if rule:
@@ -94,7 +96,7 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin):
     ) -> typing.List[WorkflowHandlerResult]:
         for transform in node.transforms:
             source_value = utils.transform_cast(
-                self._jsonata_value(data, transform.source), datatype=transform.datatype
+                jsonata_value(data, transform.source), datatype=transform.datatype
             )
 
             match transform.type:
@@ -118,7 +120,7 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin):
     ) -> typing.List[WorkflowHandlerResult]:
         results = []
 
-        values = self._jsonata_value(data, node.expr)
+        values = jsonata_value(data, node.expr)
         for i, edge in enumerate(node.edges):
             rule = self._get_rule(node.rules, i)
 
@@ -149,11 +151,6 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin):
                             results.append(WorkflowHandlerResult(edge=edge, data=result[i]))
                     return results
         return []
-
-    @staticmethod
-    def _jsonata_value(data: dict, expr: str):
-        expr = jsonata.Jsonata(expr)
-        return expr.evaluate(data)
 
     @staticmethod
     def _get_rule(rules: typing.List[Rule] | None, index: int) -> Rule | None:

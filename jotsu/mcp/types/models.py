@@ -38,10 +38,12 @@ class WorkflowNode(pydantic.BaseModel):
     metadata: WorkflowMetadata = None
     edges: typing.List[Slug | None] = pydantic.Field(default_factory=list)
 
-    def __init__(self, *, name: str, **data):
+    def __init__(self, **data):
         if 'id' not in data:
             data['id'] = slug()
-        super().__init__(name=name, **data)
+        if 'name' not in data:
+            data['name'] = data['id']
+        super().__init__(**data)
 
 
 class WorkflowRulesNode(WorkflowNode):
@@ -112,6 +114,13 @@ class WorkflowFunctionNode(WorkflowRulesNode):
     """
     type: typing.Literal['function'] = 'function'
     function: str
+
+
+class WorkflowPickNode(WorkflowNode):
+    """ Prune the data down to make it more readable.
+    """
+    type: typing.Literal['pick'] = 'pick'
+    expressions: typing.Dict[str, str]
 
 
 class WorkflowModelNode(WorkflowNode):
