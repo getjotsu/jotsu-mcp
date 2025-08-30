@@ -9,7 +9,7 @@ from jotsu.mcp.types.exceptions import JotsuException
 from jotsu.mcp.types.rules import Rule
 from jotsu.mcp.types.models import (
     WorkflowMCPNode,
-    WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode,
+    WorkflowSwitchNode, WorkflowLoopNode,
     WorkflowRulesNode, WorkflowTransformNode
 )
 from jotsu.mcp.client.client import MCPClientSession
@@ -17,11 +17,13 @@ from jotsu.mcp.client.client import MCPClientSession
 from jotsu.mcp.workflow import utils
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
+from .types import WorkflowHandlerResult
 from .utils import jsonata_value
 
 from .anthropic import AnthropicMixin
 from .cloudflare import CloudflareMixin
 from .openai import OpenAIMixin
+from .function import FunctionMixin
 from .pick import PickMixin
 from .tools import ToolMixin
 
@@ -31,12 +33,7 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class WorkflowHandlerResult(pydantic.BaseModel):
-    edge: str
-    data: dict
-
-
-class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, PickMixin):
+class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, FunctionMixin, PickMixin):
     def __init__(self, engine: 'WorkflowEngine'):
         self._engine = engine
 
@@ -133,24 +130,6 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, P
                     results.append(WorkflowHandlerResult(edge=edge, data=data))
 
         return results
-
-    # FIXME: add a time limit.
-    @staticmethod
-    async def handle_function(
-            data: dict, *, node: WorkflowFunctionNode, **_kwargs
-    ):
-        if node.edges:
-            result = utils.asteval(data, expr=node.function, node=node)
-            match result:
-                case _ if isinstance(result, dict):
-                    return [WorkflowHandlerResult(edge=edge, data=result) for edge in node.edges]
-                case _ if isinstance(result, list):
-                    results = []
-                    for i, edge in enumerate(node.edges):
-                        if i < len(result) and result[i] is not None:
-                            results.append(WorkflowHandlerResult(edge=edge, data=result[i]))
-                    return results
-        return []
 
     @staticmethod
     def _get_rule(rules: typing.List[Rule] | None, index: int) -> Rule | None:

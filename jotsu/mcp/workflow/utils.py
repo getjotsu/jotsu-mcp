@@ -2,6 +2,8 @@ import typing
 
 from asteval import Interpreter
 
+from jotsu.mcp.types import JotsuException
+
 
 def wrap_function(expr: str):
     lines = ['def __func():']
@@ -17,7 +19,10 @@ def asteval(data: dict, expr: str, *, node):
     aeval.symtable['data'] = data
     aeval.symtable['node'] = node
     aeval.symtable.pop('print', None)
-    return aeval(wrap_function(expr))
+    result = aeval(wrap_function(expr))
+    if aeval.error:
+        raise JotsuException('\n'.join([e.msg for e in aeval.error]))
+    return result
 
 
 def pybars_compiler():  # pragma: no coverage

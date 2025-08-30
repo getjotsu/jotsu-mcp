@@ -278,14 +278,14 @@ class WorkflowEngine(FastMCP):
                     workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
                 ).model_dump()
                 logger.info(
-                    "Workflow '%s [%s]' completed successfully in %s seconds.",
-                    workflow_name, run_id, f'{duration:.4f}'
+                    "Workflow '%s' completed successfully in %s seconds.",
+                    workflow_name, f'{duration:.4f}'
                 )
             else:
                 yield WorkflowActionFailed(
                     workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
                 ).model_dump()
                 logger.info(
-                    "Workflow '%s [%s]' failed in %s seconds.",
-                    workflow_name, run_id, f'{duration:.4f}'
+                    "Workflow '%s' failed in %s seconds.",
+                    workflow_name, f'{duration:.4f}'
                 )

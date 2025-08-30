@@ -1,3 +1,4 @@
-from .handler import WorkflowHandler, WorkflowHandlerResult
+from .handler import WorkflowHandler
+from .types import WorkflowHandlerResult
 
 __all__ = (WorkflowHandler, WorkflowHandlerResult)

@@ -1,3 +1,6 @@
+import pytest
+
+from jotsu.mcp.types import JotsuException
 from jotsu.mcp.workflow.utils import asteval, path_delete, transform_cast
 
 
@@ -5,6 +8,13 @@ def test_asteval():
     data = {'x': 2}
     expr = 'data["x"] += 2\nreturn data'
     assert asteval(data, expr, node=None) == {'x': 4}
+
+
+def test_asteval_error():
+    data = {}
+    expr = '1/0'
+    with pytest.raises(JotsuException):
+        asteval(data, expr, node=None)
 
 
 def test_path_delete():
