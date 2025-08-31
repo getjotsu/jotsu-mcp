@@ -9,7 +9,7 @@ from mcp.types import (
 
 from jotsu.mcp.types.exceptions import JotsuException
 from jotsu.mcp.types.models import WorkflowMCPNode, WorkflowLoopNode, WorkflowSwitchNode, WorkflowFunctionNode, \
-    WorkflowTransformNode, WorkflowTransform
+    WorkflowTransformNode, WorkflowTransform, WorkflowServer
 from jotsu.mcp.types.rules import GreaterThanEqualRule, LessThanRule
 from jotsu.mcp.workflow import WorkflowEngine
 from jotsu.mcp.workflow.handler import WorkflowHandler
@@ -17,7 +17,7 @@ from jotsu.mcp.workflow.handler import WorkflowHandler
 
 async def test_handler_resource(mocker):
     engine = WorkflowEngine([])
-    node = WorkflowMCPNode(id='1', name='data://resource', type='resource', server_id='test')
+    node = WorkflowMCPNode.model_create(name='data://resource', type='resource', server_id='test')
 
     handler = WorkflowHandler(engine=engine)
 
@@ -28,15 +28,16 @@ async def test_handler_resource(mocker):
     session = mocker.AsyncMock()
     session.read_resource.return_value = ReadResourceResult(contents=contents)
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     assert await handler.handle_resource({}, sessions=sessions, node=node) == {'data://resource': 'xxx'}
 
 
 async def test_handler_resource_json(mocker):
     engine = WorkflowEngine([])
-    node = WorkflowMCPNode(id='1', name='data://resource', type='resource', server_id='test')
+    node = WorkflowMCPNode.model_create(name='data://resource', type='resource', server_id='test')
 
     handler = WorkflowHandler(engine=engine)
 
@@ -47,8 +48,9 @@ async def test_handler_resource_json(mocker):
     session = mocker.AsyncMock()
     session.read_resource.return_value = ReadResourceResult(contents=contents)
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     assert await handler.handle_resource({}, sessions=sessions, node=node) == {'foo': 'baz'}
 
@@ -66,8 +68,9 @@ async def test_handler_resource_json_member(mocker):
     session = mocker.AsyncMock()
     session.read_resource.return_value = ReadResourceResult(contents=contents)
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     assert await handler.handle_resource({}, sessions=sessions, node=node) == {'foo': {'bar': 'baz'}}
 
@@ -87,8 +90,9 @@ async def test_handler_resource_not_found(mocker):
     session = mocker.AsyncMock()
     session.read_resource.return_value = ReadResourceResult(contents=contents)
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     assert await handler.handle_resource({}, sessions=sessions, node=node) == {}
     logger_warning.assert_called_once()
@@ -107,8 +111,9 @@ async def test_handler_prompt(mocker):
     session = mocker.AsyncMock()
     session.get_prompt.return_value = GetPromptResult(messages=messages)
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     assert await handler.handle_prompt({}, sessions=sessions, node=node) == {'prompt': 'xxx'}
 
@@ -128,8 +133,9 @@ async def test_handler_prompt_bad_type(mocker):
     session = mocker.AsyncMock()
     session.get_prompt.return_value = GetPromptResult(messages=messages)
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     assert await handler.handle_prompt({}, sessions=sessions, node=node) == {}
     logger_warning.assert_called_once()
@@ -154,8 +160,9 @@ async def test_handler_tool(mocker):
     session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema=input_schema)])
     session.call_tool.return_value = CallToolResult(isError=False, content=[TextContent(type='text', text='xxx')])
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     res = await handler.handle_tool({'name': 'foo'}, sessions=sessions, node=node)
     assert res == {'name': 'foo', 'test-tool': 'xxx'}
@@ -175,8 +182,9 @@ async def test_handler_tool_structured_content(mocker):
     call_tool_result.structuredContent = {'a': 'b'}
     session.call_tool.return_value = call_tool_result
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     res = await handler.handle_tool({}, sessions=sessions, node=node)
     assert res == {'a': 'b'}
@@ -196,8 +204,9 @@ async def test_handler_tool_structured_content_member(mocker):
     call_tool_result.structuredContent = {'a': 'b'}
     session.call_tool.return_value = call_tool_result
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     res = await handler.handle_tool({}, sessions=sessions, node=node)
     assert res == {'foo': {'a': 'b'}}
@@ -221,8 +230,9 @@ async def test_handler_tool_schema_validation_error(mocker):
     session = mocker.AsyncMock()
     session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema=input_schema)])
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     with pytest.raises(JotsuException):
         await handler.handle_tool({}, sessions=sessions, node=node)
@@ -237,8 +247,9 @@ async def test_handler_tool_error(mocker):
     session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema={})])
     session.call_tool.return_value = CallToolResult(isError=True, content=[TextContent(type='text', text='error?')])
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     with pytest.raises(JotsuException):
         await handler.handle_tool({}, sessions=sessions, node=node)
@@ -252,8 +263,10 @@ async def test_handler_tool_get_none(mocker):
     session = mocker.AsyncMock()
     session.list_tools.return_value = mocker.Mock(tools=[])
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
+
     with pytest.raises(JotsuException):
         await handler.handle_tool({}, sessions=sessions, node=node)
 
@@ -270,8 +283,9 @@ async def test_handler_tool_bad_type(mocker):
     session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test-tool', inputSchema={})])
     session.call_tool.return_value = CallToolResult(isError=False, content=[content])
 
-    sessions = mocker.Mock()
-    sessions.get.return_value = session
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
 
     assert await handler.handle_tool({}, sessions=sessions, node=node) == {}
 
@@ -281,8 +295,8 @@ async def test_handler_bad_session(mocker):
     node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
 
     handler = WorkflowHandler(engine=engine)
-    sessions = mocker.Mock()
-    sessions.get.return_value = None
+    sessions = mocker.AsyncMock()
+    sessions.get_session.return_value = None
 
     with pytest.raises(JotsuException):
         await handler.handle_tool({}, sessions=sessions, node=node)

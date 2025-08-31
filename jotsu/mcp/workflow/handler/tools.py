@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class ToolMixin(ABC):
     @abstractmethod
-    def _get_session(self, *args, **kwargs) -> MCPClientSession:
+    async def _get_session(self, *args, **kwargs) -> MCPClientSession:
         ...
 
     @abstractmethod
@@ -32,7 +32,7 @@ class ToolMixin(ABC):
             self, data: dict, *,
             node: WorkflowMCPNode, sessions: WorkflowSessionManager, **_kwargs
     ):
-        session = self._get_session(node.server_id, sessions=sessions)
+        session = await self._get_session(node.server_id, sessions=sessions)
 
         tool = await self.get_tool(session, node.name)
         if not tool:

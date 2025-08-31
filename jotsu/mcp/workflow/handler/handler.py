@@ -8,7 +8,7 @@ from mcp.types import ReadResourceResult, GetPromptResult
 from jotsu.mcp.types.exceptions import JotsuException
 from jotsu.mcp.types.rules import Rule
 from jotsu.mcp.types.models import (
-    WorkflowMCPNode,
+    WorkflowServer, WorkflowMCPNode,
     WorkflowSwitchNode, WorkflowLoopNode,
     WorkflowRulesNode, WorkflowTransformNode
 )
@@ -41,7 +41,7 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, F
             self, data: dict, *,
             node: WorkflowMCPNode, sessions: WorkflowSessionManager, **_kwargs
     ):
-        session = self._get_session(node.server_id, sessions=sessions)
+        session = await self._get_session(node.server_id, sessions=sessions)
 
         result: ReadResourceResult = await session.read_resource(pydantic.AnyUrl(node.name))
         for contents in result.contents:
@@ -62,7 +62,7 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, F
             self, data: dict, *,
             node: WorkflowMCPNode, sessions: WorkflowSessionManager, **_kwargs
     ):
-        session = self._get_session(node.server_id, sessions=sessions)
+        session = await self._get_session(node.server_id, sessions=sessions)
 
         result: GetPromptResult = await session.get_prompt(node.name, arguments=data)
         for message in result.messages:
@@ -138,11 +138,15 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, F
         return None
 
     @staticmethod
-    def _get_session(server_id: str, *, sessions: WorkflowSessionManager) -> MCPClientSession:
-        session = sessions.get(server_id)
-        if not session:
-            raise JotsuException(f'Server not found: {server_id}')
-        return session
+    def _get_server(sessions: WorkflowSessionManager, server_id: str) -> WorkflowServer:
+        for server in sessions.workflow.servers:
+            if server.id == server_id:
+                return server
+        raise JotsuException(f'Server not found: {server_id}')
+
+    async def _get_session(self, server_id: str, *, sessions: WorkflowSessionManager) -> MCPClientSession:
+        server = self._get_server(server_id=server_id, sessions=sessions)
+        return await sessions.get_session(server)
 
     @staticmethod
     def _update_json(data: dict, *, update: dict, member: str | None):

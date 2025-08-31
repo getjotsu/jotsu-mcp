@@ -38,12 +38,11 @@ class WorkflowNode(pydantic.BaseModel):
     metadata: WorkflowMetadata = None
     edges: typing.List[Slug | None] = pydantic.Field(default_factory=list)
 
-    def __init__(self, **data):
-        if 'id' not in data:
-            data['id'] = slug()
-        if 'name' not in data:
-            data['name'] = data['id']
-        super().__init__(**data)
+    @classmethod
+    def model_create(cls, **kwargs):
+        kwargs['id'] = kwargs.get('id', slug())
+        kwargs['name'] = kwargs.get('name', slug())
+        return cls(**kwargs)
 
 
 class WorkflowRulesNode(WorkflowNode):
@@ -163,10 +162,10 @@ class WorkflowServer(pydantic.BaseModel):
     def lowercase_headers(cls, value):  # noqa
         return {k.lower(): v for k, v in value.items()} if isinstance(value, dict) else value
 
-    def __init__(self, *, url: pydantic.AnyHttpUrl, **data):
-        if 'id' not in data:
-            data['id'] = slug()
-        super().__init__(url=url, **data)
+    @classmethod
+    def model_create(cls, **kwargs):
+        kwargs['id'] = kwargs.get('id', slug())
+        return cls(**kwargs)
 
 
 class WorkflowServerFull(WorkflowServer):
@@ -193,15 +192,15 @@ class Workflow(pydantic.BaseModel):
     start_node_id: str | None = None
     nodes: typing.List[NodeUnion] = pydantic.Field(default_factory=list)
     servers: typing.List[WorkflowServer] = pydantic.Field(default_factory=list)
-    # Initial data for this workflow.
+    # Initial data for this workflow that can be overridden when run.
     data: WorkflowData = None
     # General metadata for application use (NOT used by the workflow)
     metadata: WorkflowMetadata = None
 
-    def __init__(self, **data):
-        if 'id' not in data:
-            data['id'] = slug()
-        super().__init__(**data)
+    @classmethod
+    def model_create(cls, **kwargs):
+        kwargs['id'] = kwargs.get('id', slug())
+        return cls(**kwargs)
 
 
 class WorkflowModelUsage(pydantic.BaseModel):

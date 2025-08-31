@@ -1,5 +1,3 @@
-from contextlib import asynccontextmanager
-
 import pydantic
 import pytest
 
@@ -38,16 +36,7 @@ class MockHandler(WorkflowHandler):
         return data
 
 
-async def test_engine_workflow(mocker):
-
-    @asynccontextmanager
-    async def context(*_args, **_kwargs):
-        mocked_server = mocker.Mock()
-        mocker.patch.object(mocked_server, 'load', new_callable=mocker.AsyncMock)
-        yield {'test-server': mocked_server}
-
-    mocker.patch('jotsu.mcp.workflow.engine.WorkflowSessionManager.context', context)
-
+async def test_engine_workflow():
     workflow = Workflow(id='test-workflow', name='Test', start_node_id='1')
 
     workflow.servers.append(WorkflowServer(id='test-server', url=pydantic.AnyHttpUrl('https://example.com/mcp/')))

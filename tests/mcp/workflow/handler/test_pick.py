@@ -6,6 +6,6 @@ async def test_pick():
     engine = WorkflowEngine([])
 
     # noinspection PyArgumentList
-    node = WorkflowPickNode(expressions={'foo': 'baz'})
+    node = WorkflowPickNode.model_create(expressions={'foo': 'baz'})
     result = await engine.handler.handle_pick({'baz': 3}, node=node)
     assert result == {'foo': 3}

@@ -1,9 +1,24 @@
+import pydantic
+
 from jotsu.mcp.local import LocalMCPClient
-from jotsu.mcp.types import Workflow
+from jotsu.mcp.types import Workflow, WorkflowServer
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
 
-def test_sessions():
-    workflow = Workflow(id='test-workflow', name='Test')
+async def test_sessions(mocker):
+    mocked_session = mocker.AsyncMock()
+    mocked_session.load.return_value = None
+
+    mocker.patch(
+        'jotsu.mcp.client.client.MCPClientSession.__aenter__',
+        new_callable=mocker.AsyncMock, return_value=mocked_session
+    )
+
+    server = WorkflowServer.model_create(url=pydantic.AnyHttpUrl('https://example.com/mcp/'))
+    workflow = Workflow(id='test-workflow', name='Test', servers=[server])
     sessions = WorkflowSessionManager(workflow=workflow, client=LocalMCPClient())
-    assert sessions.get('123') is None
+
+    assert sessions.workflow == workflow
+    assert await sessions.get_session(server) == mocked_session
+
+    await sessions.close()

@@ -257,10 +257,8 @@ class WorkflowEngine(FastMCP):
             )
             return
 
-        async with WorkflowSessionManager(workflow, client=self._client).context() as sessions:
-            for session in sessions.values():  # type: 'MCPClientSession'
-                await session.load()
-
+        sessions = WorkflowSessionManager(workflow, client=self._client)
+        try:
             success = True
             try:
                 async for status in self._run_workflow_node(
@@ -289,3 +287,5 @@ class WorkflowEngine(FastMCP):
                     "Workflow '%s' failed in %s seconds.",
                     workflow_name, f'{duration:.4f}'
                 )
+        finally:
+            await sessions.close()
