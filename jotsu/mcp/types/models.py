@@ -163,7 +163,7 @@ class WorkflowServer(pydantic.BaseModel):
     def lowercase_headers(cls, value):  # noqa
         return {k.lower(): v for k, v in value.items()} if isinstance(value, dict) else value
 
-    def __init__(self, *, url: str, **data):
+    def __init__(self, *, url: pydantic.AnyHttpUrl, **data):
         if 'id' not in data:
             data['id'] = slug()
         super().__init__(url=url, **data)
