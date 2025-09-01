@@ -48,15 +48,23 @@ class AnthropicMixin:
                 'input_schema': node.json_schema if node.json_schema else JSON_SCHEMA
             }
             kwargs['tools'] = [tool]
-        if workflow.servers:
+        if node.servers:
+            servers = {server.id: server for server in workflow.servers}
+
             kwargs['mcp_servers'] = []
             kwargs['betas'] = ['mcp-client-2025-04-04']
-            for server in workflow.servers:
-                param = BetaRequestMCPServerURLDefinitionParam(name=server.name, type='url', url=str(server.url))
-                authorization = server.headers.get('authorization')
-                if authorization:
-                    param['authorization_token'] = authorization
-                kwargs['mcp_servers'].append(param)
+            for server_id in node.servers:
+                server = servers.get(server_id)
+                if server:
+                    param = BetaRequestMCPServerURLDefinitionParam(name=server.name, type='url', url=str(server.url))
+                    authorization = server.headers.get('authorization')
+                    if authorization:
+                        if authorization.lower().startswith('bearer'):
+                            authorization = authorization[6:].strip()
+                        param['authorization_token'] = authorization
+                    kwargs['mcp_servers'].append(param)
+                else:
+                    logger.warning('MCP server not found: %s', server_id)
 
         message: BetaMessage = await client.beta.messages.create(
             max_tokens=node.max_tokens,

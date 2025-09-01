@@ -5,10 +5,9 @@ import typing
 import pydantic
 from mcp.types import ReadResourceResult, GetPromptResult
 
-from jotsu.mcp.types.exceptions import JotsuException
 from jotsu.mcp.types.rules import Rule
 from jotsu.mcp.types.models import (
-    WorkflowServer, WorkflowMCPNode,
+    WorkflowMCPNode,
     WorkflowSwitchNode, WorkflowLoopNode,
     WorkflowRulesNode, WorkflowTransformNode
 )
@@ -18,7 +17,7 @@ from jotsu.mcp.workflow import utils
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
 from .types import WorkflowHandlerResult
-from .utils import jsonata_value
+from .utils import jsonata_value, get_server_from_session_manager
 
 from .anthropic import AnthropicMixin
 from .cloudflare import CloudflareMixin
@@ -137,15 +136,8 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, F
             return rules[index]
         return None
 
-    @staticmethod
-    def _get_server(sessions: WorkflowSessionManager, server_id: str) -> WorkflowServer:
-        for server in sessions.workflow.servers:
-            if server.id == server_id:
-                return server
-        raise JotsuException(f'Server not found: {server_id}')
-
     async def _get_session(self, server_id: str, *, sessions: WorkflowSessionManager) -> MCPClientSession:
-        server = self._get_server(server_id=server_id, sessions=sessions)
+        server = get_server_from_session_manager(server_id=server_id, sessions=sessions)
         return await sessions.get_session(server)
 
     @staticmethod

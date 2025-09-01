@@ -82,6 +82,7 @@ async def test_handler_anthropic_schema(mocker):
 
 
 async def test_handler_anthropic_servers(mocker):
+    logger_warning = mocker.patch('jotsu.mcp.workflow.handler.anthropic.logger.warning')
     from anthropic.types.beta.beta_message import BetaMessage
     from anthropic.types.beta.beta_text_block import BetaTextBlock
     from anthropic.types.beta.beta_usage import BetaUsage
@@ -98,7 +99,7 @@ async def test_handler_anthropic_servers(mocker):
     server = WorkflowServer(
         id='server',
         url=pydantic.AnyHttpUrl('https://example.com/mcp/'),
-        headers={'Authorization': 'xxx'}
+        headers={'Authorization': 'Bearer xxx'}
     )
     workflow = Workflow(id='workflow', servers=[server])
     engine = WorkflowEngine([workflow])
@@ -111,6 +112,7 @@ async def test_handler_anthropic_servers(mocker):
     node = WorkflowAnthropicNode(
         id='a', name='claude', messages=[],
         model='claude-2', json_schema={'must_not_be_empty': True},
+        servers=[server.id, 'foo']
     )
 
     result = await engine.handler.handle_anthropic(
@@ -118,3 +120,4 @@ async def test_handler_anthropic_servers(mocker):
     )
     assert 'content' in result
     anthropic_client_create.assert_called_once()
+    logger_warning.assert_called_once()
