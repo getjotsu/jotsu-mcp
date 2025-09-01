@@ -33,6 +33,8 @@ def update_data_from_json(data: dict, content: str | dict | object, *, node: Wor
 def update_data_from_text(data: dict, text: str, *, node: WorkflowModelNode):
     member = node.member or node.name
     result = data.get(node.member or node.name, '')
+    if result:
+        result += '\n'
     result += text
     data[member] = result
 

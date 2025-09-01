@@ -12,7 +12,7 @@ async def test_handler_anthropic(mocker):
 
     message = BetaMessage(
         id='1',
-        content=[BetaTextBlock(text='XXX', type='text')],
+        content=[BetaTextBlock(text='XXX', type='text'), BetaTextBlock(text='YYY', type='text')],
         model='claude', role='assistant', type='message',
         usage=BetaUsage(input_tokens=0, output_tokens=0)
     )
@@ -36,7 +36,7 @@ async def test_handler_anthropic(mocker):
         action_id='x', workflow=workflow, node=node, usage=[]
     )
     assert 'content' in result
-    assert result['claude'] == 'XXX'
+    assert result['claude'] == 'XXX\nYYY'
     anthropic_client_create.assert_called_once()
 
 
