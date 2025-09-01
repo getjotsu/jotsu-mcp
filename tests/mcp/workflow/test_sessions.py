@@ -26,7 +26,7 @@ async def test_sessions(mocker):
     await sessions.close()
 
 
-async def test_sessions_closed(mocker):
+async def test_sessions_closed():
     server = WorkflowServer.model_create(url=pydantic.AnyHttpUrl('https://example.com/mcp/'))
     workflow = Workflow(id='test-workflow', name='Test', servers=[server])
     sessions = WorkflowSessionManager(workflow=workflow, client=LocalMCPClient())
