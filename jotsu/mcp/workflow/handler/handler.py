@@ -9,11 +9,10 @@ from jotsu.mcp.types.rules import Rule
 from jotsu.mcp.types.models import (
     WorkflowMCPNode,
     WorkflowSwitchNode, WorkflowLoopNode,
-    WorkflowRulesNode, WorkflowTransformNode
+    WorkflowRulesNode
 )
 from jotsu.mcp.client.client import MCPClientSession
 
-from jotsu.mcp.workflow import utils
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
 from .types import WorkflowHandlerResult
@@ -25,6 +24,7 @@ from .openai import OpenAIMixin
 from .function import FunctionMixin
 from .pick import PickMixin
 from .tools import ToolMixin
+from .transform import TransformMixin
 
 if typing.TYPE_CHECKING:
     from jotsu.mcp.workflow.engine import WorkflowEngine  # type: ignore
@@ -32,7 +32,11 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, FunctionMixin, PickMixin):
+class WorkflowHandler(
+    AnthropicMixin, OpenAIMixin, CloudflareMixin,
+    ToolMixin,
+    FunctionMixin, PickMixin, TransformMixin
+):
     def __init__(self, engine: 'WorkflowEngine'):
         self._engine = engine
 
@@ -86,25 +90,6 @@ class WorkflowHandler(ToolMixin, AnthropicMixin, OpenAIMixin, CloudflareMixin, F
                 results.append(WorkflowHandlerResult(edge=edge, data=data))
 
         return results
-
-    async def handle_transform(
-            self, data: dict, *, node: WorkflowTransformNode, **_kwargs
-    ) -> typing.List[WorkflowHandlerResult]:
-        for transform in node.transforms:
-            source_value = utils.transform_cast(
-                jsonata_value(data, transform.source), datatype=transform.datatype
-            )
-
-            match transform.type:
-                case 'set':
-                    utils.path_set(data, path=transform.target, value=source_value)
-                case 'move':
-                    utils.path_set(data, path=transform.target, value=source_value)
-                    utils.path_delete(data, path=transform.source)
-                case 'delete':
-                    utils.path_delete(data, path=transform.source)
-
-        return self._handle_rules(node, data)
 
     async def handle_switch(
             self, data: dict, *, node: WorkflowSwitchNode, **_kwargs
