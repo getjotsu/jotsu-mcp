@@ -5,6 +5,7 @@ from mcp.types import Tool, Resource, Prompt
 from ulid import ULID
 
 from .rules import Rule
+from .shared import OAuthClientInformationFullWithBasicAuth
 
 
 def slug():
@@ -150,13 +151,14 @@ class WorkflowCloudflareNode(WorkflowModelNode):
 
 class WorkflowServer(pydantic.BaseModel):
     """ Servers are any streaming-http MCP Server that this workflow can use.
-    When the workflow is started, each of these servers is queried for all available actions.
+    MCP sessions are dynamically managed.
     """
     id: Slug
     name: str | None = None
     url: pydantic.AnyHttpUrl
     headers: typing.Dict[str, str] = pydantic.Field(default_factory=dict)
     metadata: WorkflowMetadata = None
+    client_info: OAuthClientInformationFullWithBasicAuth | None = None
 
     @pydantic.field_validator('headers', mode='before')
     def lowercase_headers(cls, value):  # noqa

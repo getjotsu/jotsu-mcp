@@ -1,4 +1,5 @@
 import typing
+import pydantic
 
 from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata
 
@@ -16,4 +17,4 @@ class OAuthClientMetadataWithBasicAuth(BasicAuthMixin, OAuthClientMetadata):
 
 
 class OAuthClientInformationFullWithBasicAuth(BasicAuthMixin, OAuthClientInformationFull):
-    ...
+    redirect_uris: list[pydantic.AnyUrl] = pydantic.Field(...)

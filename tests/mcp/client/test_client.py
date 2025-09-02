@@ -57,6 +57,33 @@ async def test_client_auth(mocker):
     authenticate.assert_called_once()
 
 
+async def test_client_auth_force(mocker):
+
+    req = httpx.Request('GET', 'https://example.com')
+    res = httpx.Response(401)
+    e = BaseExceptionGroup('error', [httpx.HTTPStatusError('xxx', request=req, response=res)])
+
+    @asynccontextmanager
+    async def mock_connect(*_args, **_kwargs):
+        if not hasattr(mock_connect, 'called'):
+            setattr(mock_connect, 'called', True)
+            raise e
+        obj = mocker.Mock()
+        obj.call_tool = mocker.AsyncMock(return_value=True)
+        yield obj
+
+    server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
+
+    client = MCPClient()
+    mocker.patch.object(client, '_connect', new=mock_connect)
+    authenticate = mocker.patch.object(client, 'authenticate', return_value='xxx', new_callable=mocker.AsyncMock)
+
+    async with client.session(server, authenticate=True) as session:
+        assert await session.call_tool('greet', {'name': 'World'})
+
+    assert authenticate.call_count == 2
+
+
 async def test_client_error(mocker):
     req = httpx.Request('GET', 'https://example.com')
     res = httpx.Response(500)

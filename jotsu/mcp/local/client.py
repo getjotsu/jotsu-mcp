@@ -14,12 +14,23 @@ if typing.TYPE_CHECKING:
 
 import pkce
 from jotsu.mcp.types import WorkflowServer
+from jotsu.mcp.types.shared import OAuthClientInformationFullWithBasicAuth
 from jotsu.mcp.client import MCPClient, OAuth2AuthorizationCodeClient, utils
 
 from . import localserver
 
 
 logger = logging.getLogger(__name__)
+
+
+def _client_info(server: WorkflowServer) -> OAuthClientInformationFullWithBasicAuth | None:
+    # Determine if the client information was provided, or if dynamic registration is needed
+    if server.client_info and server.client_info.client_id and server.client_info.client_secret:
+        return OAuthClientInformationFullWithBasicAuth(
+            client_id=server.client_info.client_id, client_secret=server.client_info.client_secret,
+            redirect_uris=server.client_info.redirect_uris
+        )
+    return None
 
 
 class LocalMCPClient(MCPClient):
@@ -45,10 +56,12 @@ class LocalMCPClient(MCPClient):
         server_metadata = await OAuth2AuthorizationCodeClient.server_metadata_discovery(base_url=base_url)
 
         # Dynamic Client Registration (SHOULD)
-        # NOTE: fail if the server doesn't support DCR.
-        client_info = await OAuth2AuthorizationCodeClient.dynamic_client_registration(
-            registration_endpoint=server_metadata.registration_endpoint, redirect_uris=['http://localhost:8001/']
-        )
+        client_info = _client_info(server)
+        if not client_info:
+            # NOTE: fail if the server doesn't support DCR.
+            client_info = await OAuth2AuthorizationCodeClient.dynamic_client_registration(
+                registration_endpoint=server_metadata.registration_endpoint, redirect_uris=['http://localhost:8001/']
+            )
 
         queue = Queue()
         httpd = localserver.LocalHTTPServer(queue, request_handler=self._request_handler)
