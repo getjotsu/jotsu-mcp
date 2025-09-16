@@ -15,7 +15,12 @@ from jotsu.mcp.types import WorkflowServer
 class MockCredentialsManager(CredentialsManager):
     async def load(self, server_id: str) -> dict | None:
         return {
-            'access_token': 'xxx'
+            'access_token': 'xxx',
+            'refresh_token': 'xxx', 'client_id': '123',
+            'authorization_endpoint': 'https://example.com/authorize',
+            'token_endpoint': 'https://example.com./tokens',
+            'scope': '',
+            'client_secret': 'xyz'
         }
 
 
@@ -159,11 +164,33 @@ async def test_refresh_failed(mocker):
     exchange_refresh_token.assert_called_once()
 
 
-async def test_client_authenticate():
+async def test_client_authenticate(mocker):
     credentials_manager = MockCredentialsManager()
     server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
     client = MCPClient(credentials_manager=credentials_manager)
+
+    token = OAuthToken(access_token='xxx')
+    exchange_refresh_token = mocker.patch(
+        'jotsu.mcp.client.OAuth2AuthorizationCodeClient.exchange_refresh_token',
+        new_callable=mocker.AsyncMock, return_value=token
+    )
+
+    assert await client.authenticate(server) == 'xxx'
+    exchange_refresh_token.assert_called_once()
+
+
+async def test_client_authenticate_none(mocker):
+    credentials_manager = MockCredentialsManager()
+    server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
+    client = MCPClient(credentials_manager=credentials_manager)
+
+    exchange_refresh_token = mocker.patch(
+        'jotsu.mcp.client.OAuth2AuthorizationCodeClient.exchange_refresh_token',
+        new_callable=mocker.AsyncMock, return_value=None
+    )
+
     assert await client.authenticate(server) is None
+    exchange_refresh_token.assert_called_once()
 
 
 async def test_client_session(mocker):

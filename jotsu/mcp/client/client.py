@@ -122,4 +122,11 @@ class MCPClient:
 
     async def authenticate(self, server: WorkflowServer) -> str | None:
         """Do the OAuth2 authorization code flow.  Returns an access token if successful."""
+
+        # In base class only try token refresh.
+        credentials = await self.credentials.load(server.id)
+        if credentials:
+            access_token = await self.token_refresh(server, credentials)
+            if access_token:
+                return access_token
         return None

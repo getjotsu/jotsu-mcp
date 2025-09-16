@@ -43,7 +43,7 @@ class LocalMCPClient(MCPClient):
         self._request_handler = request_handler
 
     async def authenticate(self, server: WorkflowServer) -> str | None:
-        # Try refresh first instead of forcing the user to re-authenticate.
+        # Try refresh first.
         credentials = await self.credentials.load(server.id)
         if credentials:
             access_token = await self.token_refresh(server, credentials)
