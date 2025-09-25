@@ -61,6 +61,7 @@ class OpenAIMixin:
             model=node.model,
             input=messages,  # Responses API uses 'input' instead of 'messages'
             max_output_tokens=node.max_tokens,
+            temperature=node.temperature,
             **kwargs
         )
 

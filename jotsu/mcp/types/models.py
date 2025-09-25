@@ -132,6 +132,7 @@ class WorkflowModelNode(WorkflowNode):
     use_json_schema: typing.Optional[bool] = None
     json_schema: typing.Optional[dict] = None
     include_message_in_output: bool = True
+    temperature: float | None = 0
     # Where the output goes in the result.
     member: str | None = None
 

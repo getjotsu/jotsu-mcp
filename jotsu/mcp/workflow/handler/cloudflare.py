@@ -55,7 +55,8 @@ class CloudflareMixin:
             node.model,
             account_id=os.environ.get('CLOUDFLARE_ACCOUNT_ID'),
             max_tokens=node.max_tokens,
-            messages=messages
+            messages=messages,
+            temperature=node.temperature,
         )
 
         usage.append(

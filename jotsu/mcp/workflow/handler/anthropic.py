@@ -70,6 +70,7 @@ class AnthropicMixin:
             max_tokens=node.max_tokens,
             model=node.model,
             messages=messages,
+            temperature=node.temperature,
             **kwargs
         )
 
