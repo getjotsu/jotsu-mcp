@@ -51,7 +51,7 @@ class WorkflowAction(pydantic.BaseModel):
     @classmethod
     def set_defaults(cls, values):
         if values.get('timestamp') is None:
-            values['timestamp'] = time.perf_counter()
+            values['timestamp'] = time.time()
         return values
 
 
@@ -93,6 +93,7 @@ class WorkflowActionNodeEnd(WorkflowAction):
     action: typing.Literal['node-end'] = 'node-end'
     node: _WorkflowNodeRef
     results: typing.List[WorkflowHandlerResult]
+    duration: float
 
 
 class WorkflowActionNodeError(WorkflowAction):
@@ -168,7 +169,10 @@ class WorkflowEngine(FastMCP):
 
         method = getattr(self._handler, f'handle_{node.type}', None)
         if method:
-            yield WorkflowActionNodeStart(node=ref, data=data, run_id=run_id).model_dump()
+            start = time.time()
+            yield WorkflowActionNodeStart(
+                node=ref, data=data, run_id=run_id, timestamp=start
+            ).model_dump()
 
             try:
                 action_id = slug()
@@ -176,7 +180,11 @@ class WorkflowEngine(FastMCP):
                     data, action_id=action_id, workflow=workflow, node=node, sessions=sessions, usage=usage
                 )
                 results: typing.List[WorkflowHandlerResult] = self._results(node, result)
-                yield WorkflowActionNodeEnd(id=action_id, node=ref, results=results, run_id=run_id).model_dump()
+
+                end = time.time()
+                yield WorkflowActionNodeEnd(
+                    id=action_id, node=ref, results=results, run_id=run_id, timestamp=end, duration=end - start
+                ).model_dump()
             except Exception as e:  # noqa
                 logger.exception('handler exception')
 
@@ -200,7 +208,7 @@ class WorkflowEngine(FastMCP):
                 yield status
 
     async def run_workflow(self, name: str, data: dict = None, *, run_id: str = None):
-        start = time.perf_counter()
+        start = time.time()
         usage: list[WorkflowModelUsage] = []
 
         workflow = self._get_workflow(name)
@@ -229,7 +237,7 @@ class WorkflowEngine(FastMCP):
                     exc_type=exc_type.__name__, traceback=list(self._get_tb(tb)),
                 ).model_dump()
 
-                end = time.perf_counter()
+                end = time.time()
                 duration = end - start
                 yield WorkflowActionFailed(
                     workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
@@ -244,7 +252,7 @@ class WorkflowEngine(FastMCP):
         node = nodes.get(workflow.start_node_id)
 
         if not node:
-            end = time.perf_counter()
+            end = time.time()
             duration = end - start
 
             yield WorkflowActionEnd(
@@ -268,7 +276,7 @@ class WorkflowEngine(FastMCP):
             except:  # noqa
                 success = False
 
-            end = time.perf_counter()
+            end = time.time()
             duration = end - start
 
             if success:
