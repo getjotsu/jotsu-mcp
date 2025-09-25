@@ -39,12 +39,13 @@ class OpenAIMixin:
         kwargs: dict = {}
         system = data.get('system', node.system)
         if system:
+            content = utils.pybars_render(system, data)
             # Responses API uses system messages instead of explicit kwarg
             messages.insert(0, {
                 'role': 'system',
-                'content': utils.pybars_render(system, data)
+                'content': content
             })
-
+            data['system'] = content
         if node.json_schema:
             # OpenAI needs a schema for structured output or for production, a schema SHOULD be used.
             if node.use_json_schema or (node.use_json_schema is None):

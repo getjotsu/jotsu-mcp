@@ -39,11 +39,12 @@ class CloudflareMixin:
         kwargs: dict = {}
         system = data.get('system', node.system)
         if system:
+            content = utils.pybars_render(system, data)
             messages.insert(0, {
                 'role': 'system',
-                'content': utils.pybars_render(system, data)
+                'content': content
             })
-
+            data['system'] = content
         if node.use_json_schema or (node.use_json_schema is None and node.json_schema):
             response_format = {
                 'type': 'json_schema',

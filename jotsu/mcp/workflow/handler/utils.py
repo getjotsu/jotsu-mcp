@@ -13,10 +13,12 @@ def get_messages(data: dict, prompt: str):
         messages = []
         prompt = data.get('prompt', prompt)
         if prompt:
+            content = pybars_render(prompt, data)
             messages.append({
                 'role': 'user',
-                'content': pybars_render(prompt, data)
+                'content': content
             })
+            data['prompt'] = content
     return messages
 
 

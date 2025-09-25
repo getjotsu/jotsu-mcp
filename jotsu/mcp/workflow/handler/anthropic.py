@@ -41,7 +41,9 @@ class AnthropicMixin:
         kwargs = {}
         system = data.get('system', node.system)
         if system:
-            kwargs['system'] = utils.pybars_render(system, data)
+            content = utils.pybars_render(system, data)
+            kwargs['system'] = content
+            data['system'] = content
         if node.use_json_schema or (node.use_json_schema is None and node.json_schema):
             tool = {
                 'name': 'structured_output',
