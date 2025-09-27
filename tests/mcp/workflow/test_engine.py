@@ -122,3 +122,49 @@ async def test_engine_schema_validation_error():
     assert len(trace) == 3   # node start/error + workflow start/failed
     assert trace[1]['action'] == 'workflow-schema-error'
     assert trace[2]['action'] == 'workflow-failed'
+
+
+async def test_engine_mock():
+    workflow = Workflow(id='test-workflow', name='Test', start_node_id='1')
+
+    workflow.servers.append(WorkflowServer(id='test-server', url=pydantic.AnyHttpUrl('https://example.com/mcp/')))
+
+    workflow.nodes.append(WorkflowToolNode(id='1', name='tool', server_id='test-server', edges=['2']))
+    workflow.nodes.append(WorkflowNode(id='2', name='other', type='other'))
+
+    engine = WorkflowEngine([workflow])
+
+    data = {
+        '__mocks__': {'1': {'baz': '123'}},
+        'foo': 'bar'
+    }
+
+    trace = [x async for x in engine.run_workflow('test-workflow', data=data)]
+    assert len(trace) == 5   # no handler for other node so no start/end.
+
+    node = trace[3]
+    assert node['action'] == 'default'
+    assert node['data'] == {'foo': 'bar', 'baz': '123'}
+
+
+async def test_engine_mock_replace():
+    workflow = Workflow(id='test-workflow', name='Test', start_node_id='1')
+
+    workflow.servers.append(WorkflowServer(id='test-server', url=pydantic.AnyHttpUrl('https://example.com/mcp/')))
+
+    workflow.nodes.append(WorkflowToolNode(id='1', name='tool', server_id='test-server', edges=['2']))
+    workflow.nodes.append(WorkflowNode(id='2', name='other', type='other'))
+
+    engine = WorkflowEngine([workflow])
+
+    data = {
+        '__mocks__': {'1': {'__type__': 'replace', 'baz': '123'}},
+        'foo': 'bar'
+    }
+
+    trace = [x async for x in engine.run_workflow('test-workflow', data=data)]
+    assert len(trace) == 5   # no handler for other node so no start/end.
+
+    node = trace[3]
+    assert node['action'] == 'default'
+    assert node['data'] == {'baz': '123'}

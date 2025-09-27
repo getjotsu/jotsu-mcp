@@ -111,6 +111,9 @@ class WorkflowActionDefault(WorkflowAction):
 
 
 class WorkflowEngine(FastMCP):
+    MOCKS = '__mocks__'
+    MOCK_TYPE = '__type__'
+
     def __init__(
             self, workflows: Workflow | typing.List[Workflow], *args,
             client: typing.Optional[MCPClient] = None, handler_cls: typing.Type[WorkflowHandler] = None,
@@ -163,7 +166,7 @@ class WorkflowEngine(FastMCP):
     async def _run_workflow_node(
             self, workflow: Workflow, node: WorkflowNode, data: dict, *,
             nodes: typing.Dict[str, WorkflowNode], sessions: WorkflowSessionManager, usage: list[WorkflowModelUsage],
-            run_id: str
+            run_id: str, mocks: typing.Dict[str, dict]
     ):
         ref = _WorkflowNodeRef.from_node(node)
 
@@ -176,9 +179,17 @@ class WorkflowEngine(FastMCP):
 
             try:
                 action_id = slug()
-                result = await method(
-                    data, action_id=action_id, workflow=workflow, node=node, sessions=sessions, usage=usage
-                )
+                if node.id not in mocks:
+                    result = await method(
+                        data, action_id=action_id, workflow=workflow, node=node, sessions=sessions, usage=usage
+                    )
+                else:
+                    mock = mocks[node.id].copy()
+                    mock_type = mock.pop(self.MOCK_TYPE, '')
+                    if mock_type.lower() == 'replace':
+                        result = mock
+                    else:
+                        result = data | mock
                 results: typing.List[WorkflowHandlerResult] = self._results(node, result)
 
                 end = time.time()
@@ -203,13 +214,16 @@ class WorkflowEngine(FastMCP):
         for result in results:
             node = nodes[result.edge]
             async for status in self._run_workflow_node(
-                    workflow, node, result.data, nodes=nodes, sessions=sessions, usage=usage, run_id=run_id
+                    workflow, node, result.data, nodes=nodes,
+                    sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
             ):
                 yield status
 
     async def run_workflow(self, name: str, data: dict = None, *, run_id: str = None):
         start = time.time()
         usage: list[WorkflowModelUsage] = []
+
+        mocks = data.pop(self.MOCKS, {}) if data else {}
 
         workflow = self._get_workflow(name)
         if not workflow:
@@ -270,7 +284,8 @@ class WorkflowEngine(FastMCP):
             success = True
             try:
                 async for status in self._run_workflow_node(
-                        workflow, node, data=payload, nodes=nodes, sessions=sessions, usage=usage, run_id=run_id
+                        workflow, node, data=payload, nodes=nodes,
+                        sessions=sessions, usage=usage, run_id=run_id, mocks=mocks,
                 ):
                     yield status
             except:  # noqa
