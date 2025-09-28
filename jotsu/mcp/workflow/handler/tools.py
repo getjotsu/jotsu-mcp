@@ -17,7 +17,7 @@ class ToolMixin(ABC):
         ...
 
     @abstractmethod
-    def _update_text(self, *args, **kwargs) -> MCPClientSession:
+    def _update_text(self, *args, **kwargs) -> dict:
         ...
 
     @staticmethod
@@ -33,10 +33,11 @@ class ToolMixin(ABC):
             node: WorkflowMCPNode, sessions: WorkflowSessionManager, **_kwargs
     ):
         session = await self._get_session(node.server_id, sessions=sessions)
+        tool_name = node.tool_name if node.tool_name else node.name
 
-        tool = await self.get_tool(session, node.name)
+        tool = await self.get_tool(session, tool_name)
         if not tool:
-            raise JotsuException(f'MCP Tool not found: {node.name}')
+            raise JotsuException(f'MCP Tool not found: {tool_name}')
 
         try:
             jsonschema.validate(instance=data, schema=tool.inputSchema)
@@ -49,9 +50,9 @@ class ToolMixin(ABC):
             if prop in data:
                 arguments[prop] = data[prop]
 
-        result: CallToolResult = await session.call_tool(node.name, arguments=arguments)
+        result: CallToolResult = await session.call_tool(tool_name, arguments=arguments)
         if result.isError:
-            raise JotsuException(f"Error calling tool '{node.name}': {result.content[0].text}.")
+            raise JotsuException(f"Error calling tool '{tool_name}': {result.content[0].text}.")
 
         if result.structuredContent:
             if node.member:
@@ -63,9 +64,9 @@ class ToolMixin(ABC):
                 message_type = content.type
                 if message_type == 'text':
                     # Tools don't have a mime type and only text is currently supported.
-                    data = self._update_text(data, text=content.text, member=node.member or node.name)
+                    data = self._update_text(data, text=content.text, member=node.member or tool_name)
                 else:
                     logger.warning(
-                        "Invalid message type '%s' for tool '%s'.", message_type, node.name
+                        "Invalid message type '%s' for tool '%s'.", message_type, tool_name
                     )
         return data

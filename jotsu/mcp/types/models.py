@@ -22,7 +22,8 @@ WorkflowJsonSchema = typing.Optional[typing.Dict[str, typing.Any]]
 
 
 class WorkflowEvent(pydantic.BaseModel):
-    name: str
+    name: str  # Human=readable
+    description: str | None = None
     type: str
     json_schema: WorkflowJsonSchema = None
     metadata: WorkflowMetadata = None
@@ -34,7 +35,8 @@ class WorkflowNode(pydantic.BaseModel):
     """
     model_config = pydantic.ConfigDict(extra='allow')
     id: Slug
-    name: str
+    name: str  # Human=readable
+    description: str | None = None
     type: str
     metadata: WorkflowMetadata = None
     edges: typing.List[Slug | None] = pydantic.Field(default_factory=list)
@@ -64,18 +66,21 @@ class WorkflowToolNode(WorkflowMCPNode):
     """ MCP Tool(s)
     """
     type: typing.Literal['tool'] = 'tool'
+    tool_name: str | None = None
 
 
 class WorkflowResourceNode(WorkflowMCPNode):
     """ MCP Resources(s)
     """
     type: typing.Literal['resource'] = 'resource'
+    uri: pydantic.AnyUrl
 
 
 class WorkflowPromptNode(WorkflowMCPNode):
     """ MCP Prompt(s)
     """
     type: typing.Literal['prompt'] = 'prompt'
+    prompt_name: str
 
 
 class WorkflowTransform(pydantic.BaseModel):

@@ -41,9 +41,17 @@ async def test_engine_workflow():
 
     workflow.servers.append(WorkflowServer(id='test-server', url=pydantic.AnyHttpUrl('https://example.com/mcp/')))
 
-    workflow.nodes.append(WorkflowToolNode(id='1', name='tool', server_id='test-server', edges=['2']))
-    workflow.nodes.append(WorkflowResourceNode(id='2', name='resource', server_id='test-server', edges=['3']))
-    workflow.nodes.append(WorkflowPromptNode(id='3', name='prompt', server_id='test-server', edges=['4']))
+    workflow.nodes.append(
+        WorkflowToolNode(id='1', name='tool', tool_name='tool', server_id='test-server', edges=['2'])
+    )
+    workflow.nodes.append(
+        WorkflowResourceNode(
+            id='2', name='resource', uri=pydantic.AnyUrl('uri://resource'), server_id='test-server', edges=['3']
+        )
+    )
+    workflow.nodes.append(
+        WorkflowPromptNode(id='3', name='prompt', prompt_name='prompt', server_id='test-server', edges=['4'])
+    )
     workflow.nodes.append(WorkflowNode(id='4', name='other', type='other'))
 
     engine = WorkflowEngine([workflow], handler_cls=MockHandler)
