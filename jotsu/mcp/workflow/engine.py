@@ -223,8 +223,6 @@ class WorkflowEngine(FastMCP):
         start = time.time()
         usage: list[WorkflowModelUsage] = []
 
-        mocks = data.pop(self.MOCKS, {}) if data else {}
-
         workflow = self._get_workflow(name)
         if not workflow:
             logger.error('Workflow not found: %s', name)
@@ -234,9 +232,11 @@ class WorkflowEngine(FastMCP):
         workflow_name = f'{workflow.name} [{workflow.id}]' if workflow.name != workflow.id else workflow.name
         logger.info("Running workflow '%s'.", workflow_name)
 
-        payload = workflow.data if workflow.data else {}
+        payload = workflow.data.copy() if workflow.data else {}
         if data:
             payload.update(data)
+
+        mocks = payload.pop(self.MOCKS, {})
 
         ref = _WorkflowRef(id=workflow.id, name=workflow.name or workflow.id)
         yield WorkflowActionStart(workflow=ref, timestamp=start, data=payload, run_id=run_id).model_dump()
