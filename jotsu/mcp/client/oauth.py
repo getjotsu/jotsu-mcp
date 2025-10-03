@@ -24,8 +24,8 @@ class AuthorizeInfo(pydantic.BaseModel):
     response_type: typing.Literal['code'] = 'code'
     client_id: str
     redirect_uri: str
-    scope: str
     state: str
+    scope: str | None = None
 
 
 # Same as MCP, but make code_verifier optional.
@@ -36,7 +36,7 @@ class AuthorizationCodeRequest(BaseAuthorizationCodeRequest):
 class ServerMeta(pydantic.BaseModel):
     authorization_endpoint: str
     token_endpoint: str
-    registration_endpoint: str | None
+    registration_endpoint: str | None = None
 
 
 async def log_request(request: httpx.Request):
@@ -52,7 +52,7 @@ class OAuth2AuthorizationCodeClient:
     def __init__(
             self, *,
             authorization_endpoint: str, token_endpoint: str,
-            scope: str,
+            scope: str | None,
             client_id: str, client_secret: str | None = None,
             **_kwargs  # ignored
     ):
@@ -73,7 +73,7 @@ class OAuth2AuthorizationCodeClient:
             'response_type': 'code',
             'client_id': self.client_id,
             'redirect_uri': redirect_uri,
-            'scope': self.scope,
+            'scope': self.scope or '',
             'state': state
         }
         url = f'{self.authorization_endpoint}?{urlencode(params)}'
@@ -91,7 +91,8 @@ class OAuth2AuthorizationCodeClient:
                 code=code,
                 client_id=self.client_id,
                 client_secret=self.client_secret,
-                redirect_uri=pydantic.AnyHttpUrl(redirect_uri)
+                redirect_uri=pydantic.AnyHttpUrl(redirect_uri),
+                resource=None
             )
             if code_verifier:
                 req.code_verifier = code_verifier
@@ -121,7 +122,8 @@ class OAuth2AuthorizationCodeClient:
                 refresh_token=refresh_token.token,
                 scope=' '.join(scopes) if scopes else self.scope,
                 client_id=self.client_id,
-                client_secret=self.client_secret
+                client_secret=self.client_secret,
+                resource=None
             )
             res = await httpx_client.post(self.token_endpoint, data=req.model_dump())
             if res.status_code != 200:
@@ -147,7 +149,10 @@ class OAuth2AuthorizationCodeClient:
                 res = await httpx_client.get(url)
                 res.raise_for_status()
                 logger.info('Server metadata found: %s', res.text)
-                return ServerMeta(**res.json())
+                kwargs = res.json()
+                # If DCR isn't supported some servers (e.g. Google) don't provide a registration endpoint at all.
+                kwargs.setdefault('registration_endpoint', None)
+                return ServerMeta(**kwargs)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.info('Server metadata discovery not found, using default endpoints')

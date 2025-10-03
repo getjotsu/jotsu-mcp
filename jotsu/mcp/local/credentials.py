@@ -10,7 +10,13 @@ class LocalCredentialsManager(CredentialsManager):
     """
     def __init__(self, path: str = None):
         path = path if path else '~/.jotsu'
-        self._path = self._path(path)
+        path = os.path.abspath(os.path.expanduser(path))
+        if os.path.exists(path):
+            assert os.path.isdir(path)
+
+        path = os.path.join(path, 'credentials')
+        os.makedirs(path, exist_ok=True)
+        self._path = path
 
     async def load(self, server_id: str) -> dict | None:
         path = os.path.join(self._path, f'{server_id}.json')
