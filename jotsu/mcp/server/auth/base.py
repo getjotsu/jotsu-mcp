@@ -102,7 +102,7 @@ class BaseAuthServerProvider(OAuthAuthorizationServerProvider):
     async def load_refresh_token(
             self, client: OAuthClientInformationFull, refresh_token: str
     ) -> RefreshToken | None:
-        logger.info('load_refresh_token: %s', refresh_token)
+        logger.debug('load_refresh_token: %s', refresh_token)
 
         try:
             payload = jwt.decode(refresh_token, self.secret_key, algorithms=['HS256'])
@@ -125,12 +125,12 @@ class BaseAuthServerProvider(OAuthAuthorizationServerProvider):
             refresh_token: RefreshToken,
             scopes: list[str],
     ) -> OAuthToken | None:
-        logger.info('exchange_refresh_token: %s', refresh_token.model_dump_json())
+        logger.debug('exchange_refresh_token: %s', refresh_token.model_dump_json())
         third_party_token = await oauth.exchange_refresh_token(refresh_token=refresh_token, scopes=scopes)
         return self._third_party_token_to_oauth_token(client, third_party_token) if third_party_token else None
 
     async def load_access_token(self, token: str) -> AccessToken | None:
-        logger.info('load_access_token: %s', token)
+        logger.debug('load_access_token: %s', token)
 
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=['HS256'])
@@ -161,7 +161,7 @@ class BaseAuthServerProvider(OAuthAuthorizationServerProvider):
     def _third_party_token_to_oauth_token(
             self, client: OAuthClientInformationFull, third_party_token: OAuthToken
     ) -> OAuthToken:
-        logger.debug('Third-party token: %s', third_party_token.model_dump_json())
+        logger.debug('third-party token: %s', third_party_token.model_dump_json())
 
         # Convert the simple string tokens returned by the third-party app to JWTs.
         # This gives us the information we need later in load_access_token()/load_refresh_token()
