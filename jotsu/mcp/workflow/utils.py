@@ -1,4 +1,7 @@
+import datetime
 import typing
+from datetime import timedelta
+from types import SimpleNamespace
 
 from asteval import Interpreter
 
@@ -18,7 +21,14 @@ def asteval(data: dict, expr: str, *, node):
     aeval = Interpreter()
     aeval.symtable['data'] = data
     aeval.symtable['node'] = node
+
+    aeval.symtable['datetime'] = SimpleNamespace(
+        datetime=datetime.datetime,
+        timedelta=datetime.timedelta
+    )
+
     aeval.symtable.pop('print', None)
+
     result = aeval(wrap_function(expr))
     if aeval.error:
         raise JotsuException('\n'.join([e.msg for e in aeval.error]))
