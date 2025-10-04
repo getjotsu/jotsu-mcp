@@ -30,15 +30,15 @@ async def test_route_registration(pass_thru_provider, mocker):
 
     handler = RegistrationHandler(pass_thru_provider)
 
-    form = mocker.Mock()
-    form.get.return_value = '123'
-    form.getlist.return_value = ['http://localhost/redirect']
-
     request = mocker.AsyncMock()
-    request.form.return_value = form
+    request.form.return_value = {
+        'client_id': '123',
+        'client_secret': 'xyz',
+        'redirect_uris': ['http://localhost/redirect']
+    }
 
     response = await handler.handle(request)
-    assert response
+    assert response.status_code == 200
     save_client.assert_called_once()
 
 

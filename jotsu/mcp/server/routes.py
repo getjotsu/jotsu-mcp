@@ -1,5 +1,9 @@
 import logging
 
+import pydantic
+from mcp.server.auth.errors import stringify_pydantic_error
+from mcp.server.auth.handlers.register import RegistrationErrorResponse
+from mcp.server.auth.json_response import PydanticJSONResponse
 from mcp.server.auth.provider import AuthorizationParams
 from mcp.shared.auth import OAuthClientInformationFull
 from pydantic import AnyUrl
@@ -46,6 +50,12 @@ class RedirectHandler:
         return await redirect_route(request, cache=self._provider.cache)
 
 
+class RegistrationRequest(pydantic.BaseModel):
+    client_id: str
+    client_secret: str
+    redirect_uris: list[AnyUrl] = pydantic.Field(..., min_length=1)
+
+
 # This is NOT for dynamic client registration but instead for 'static' client registration where
 # the user adds a client_id/client_secret and redirect uris via a form POST request.
 class RegistrationHandler:
@@ -56,25 +66,23 @@ class RegistrationHandler:
         self._provider = provider
 
     async def handle(self, request: Request):
-        form = await request.form()
+        try:
+            # Parse request body as JSON
+            body = await request.form()
+            client_metadata = RegistrationRequest.model_validate(body)
 
-        client_id = form.get('client_id')
-        client_secret = form.get('client_secret')
-        redirect_uris = form.getlist('redirect_uris')
-
-        if not client_id or not client_secret or not redirect_uris:
-            return JSONResponse(
+            # Scope validation is handled below
+        except pydantic.ValidationError as validation_error:
+            return PydanticJSONResponse(
+                content=RegistrationErrorResponse(
+                    error='invalid_client_metadata',
+                    error_description=stringify_pydantic_error(validation_error),
+                ),
                 status_code=422,
-                content={
-                    'detail': 'client_id, client_secret and redirect_uris are required.'
-                },
-                headers={'Cache-Control': 'no-store'},
             )
 
         client = OAuthClientInformationFull(
-            client_id=client_id,
-            client_secret=client_secret,
-            redirect_uris=[AnyUrl(redirect_uri) for redirect_uri in redirect_uris],
+            **client_metadata.model_dump(),
             scope=self._provider.scope
         )
         await self._provider.client_manager.save_client(client)

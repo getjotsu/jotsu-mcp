@@ -1,6 +1,5 @@
 import datetime
 import typing
-from datetime import timedelta
 from types import SimpleNamespace
 
 from asteval import Interpreter
