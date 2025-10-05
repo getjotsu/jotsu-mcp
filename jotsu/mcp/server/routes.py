@@ -58,7 +58,7 @@ class RegistrationRequest(pydantic.BaseModel):
 
 # This is NOT for dynamic client registration but instead for 'static' client registration where
 # the user adds a client_id/client_secret and redirect uris via a form POST request.
-class RegistrationHandler:
+class StaticRegistrationHandler:
     CAPABILITY = 'registration.static'
     _client_manager: AsyncClientManager
 
@@ -68,7 +68,7 @@ class RegistrationHandler:
     async def handle(self, request: Request):
         try:
             # Parse request body as JSON
-            body = await request.form()
+            body = await request.json()
             client_metadata = RegistrationRequest.model_validate(body)
 
             # Scope validation is handled below

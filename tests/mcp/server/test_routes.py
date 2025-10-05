@@ -2,7 +2,7 @@ import pydantic
 
 from mcp.server.auth.provider import AuthorizationParams
 
-from jotsu.mcp.server.routes import RegistrationHandler, RedirectHandler
+from jotsu.mcp.server.routes import StaticRegistrationHandler, RedirectHandler
 
 
 async def test_route_redirect(third_party_provider, mocker):
@@ -28,10 +28,10 @@ async def test_route_redirect(third_party_provider, mocker):
 async def test_route_registration(pass_thru_provider, mocker):
     save_client = mocker.patch.object(pass_thru_provider.client_manager, 'save_client', new_callable=mocker.AsyncMock)
 
-    handler = RegistrationHandler(pass_thru_provider)
+    handler = StaticRegistrationHandler(pass_thru_provider)
 
     request = mocker.AsyncMock()
-    request.form.return_value = {
+    request.json.return_value = {
         'client_id': '123',
         'client_secret': 'xyz',
         'redirect_uris': ['http://localhost/redirect']
@@ -43,7 +43,7 @@ async def test_route_registration(pass_thru_provider, mocker):
 
 
 async def test_route_registration_422(pass_thru_provider, mocker):
-    handler = RegistrationHandler(pass_thru_provider)
+    handler = StaticRegistrationHandler(pass_thru_provider)
 
     form = mocker.Mock()
     form.get.return_value = ''

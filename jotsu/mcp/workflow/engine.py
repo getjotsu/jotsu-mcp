@@ -199,7 +199,15 @@ class WorkflowEngine(FastMCP):
             except Exception as e:  # noqa
                 logger.exception('handler exception')
 
-                exc_type, _, tb = sys.exc_info()
+                # If there is only one exception in the group, return that instead.
+                if isinstance(e, ExceptionGroup):
+                    group = typing.cast(ExceptionGroup, e)
+                    if len(group.exceptions) == 1:
+                        e = group.exceptions[0]
+
+                exc_type = type(e)
+                tb = e.__traceback__
+
                 yield WorkflowActionNodeError(
                     node=ref, message=str(e), run_id=run_id,
                     exc_type=exc_type.__name__, traceback=list(self._get_tb(tb))
