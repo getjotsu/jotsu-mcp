@@ -67,6 +67,7 @@ class WorkflowToolNode(WorkflowMCPNode):
     """
     type: typing.Literal['tool'] = 'tool'
     tool_name: str | None = None
+    structured_output: bool = False
 
 
 class WorkflowResourceNode(WorkflowMCPNode):

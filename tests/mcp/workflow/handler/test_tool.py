@@ -157,3 +157,37 @@ async def test_handler_tool_bad_type(mocker):
     sessions.get_session.return_value = session
 
     assert await handler.handle_tool({}, sessions=sessions, node=node) == {}
+
+
+async def test_handler_tool_structured_output(mocker):
+    engine = WorkflowEngine([])
+    node = WorkflowToolNode(
+        id='1', name='test-tool', tool_name='test_tool', type='tool', server_id='test', structured_output=True
+    )
+
+    input_schema = {
+        'type': 'object',
+        'properties': {
+            'name': {
+                'type': 'string'
+            },
+            'kwargs': {
+                'type': 'object'
+            }
+        },
+        'required': ['name', 'kwargs']
+    }
+
+    handler = WorkflowHandler(engine=engine)
+    session = mocker.AsyncMock()
+    session.list_tools.return_value = mocker.Mock(tools=[Tool(name='test_tool', inputSchema=input_schema)])
+    session.call_tool.return_value = CallToolResult(
+        isError=False, content=[TextContent(type='text', text='[{"foo": "baz"}]')]
+    )
+
+    sessions = mocker.AsyncMock()
+    sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
+    sessions.get_session.return_value = session
+
+    res = await handler.handle_tool({'name': 'test'}, sessions=sessions, node=node)
+    assert res == {'name': 'test', 'foo': 'baz'}
