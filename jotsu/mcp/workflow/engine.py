@@ -21,6 +21,10 @@ from .sessions import WorkflowSessionManager
 logger = logging.getLogger(__name__)
 
 
+class _WorkflowCompleteException(Exception):
+    ...
+
+
 class _WorkflowRef(pydantic.BaseModel):
     id: str
     name: str
@@ -89,11 +93,16 @@ class WorkflowActionNodeStart(WorkflowAction):
     data: WorkflowData
 
 
-class WorkflowActionNodeEnd(WorkflowAction):
-    action: typing.Literal['node-end'] = 'node-end'
+class WorkflowActionNode(WorkflowAction):
+    action: typing.Literal['node-end'] = 'node'
     node: _WorkflowNodeRef
+    data: WorkflowData
     results: typing.List[WorkflowHandlerResult]
     duration: float
+
+
+# Keep old name too.
+WorkflowActionNodeEnd = WorkflowActionNode
 
 
 class WorkflowActionNodeError(WorkflowAction):
@@ -170,6 +179,7 @@ class WorkflowEngine(FastMCP):
     ):
         ref = _WorkflowNodeRef.from_node(node)
 
+        action_id = slug()
         method = getattr(self._handler, f'handle_{node.type}', None)
         if method:
             start = time.time()
@@ -178,12 +188,12 @@ class WorkflowEngine(FastMCP):
             ).model_dump()
 
             try:
-                action_id = slug()
                 if node.id not in mocks:
                     result = await method(
                         data, action_id=action_id, workflow=workflow, node=node, sessions=sessions, usage=usage
                     )
                 else:
+                    # Mocks/testing
                     mock = mocks[node.id].copy()
                     mock_type = mock.pop(self.MOCK_TYPE, '')
                     if mock_type.lower() == 'replace':
@@ -193,8 +203,9 @@ class WorkflowEngine(FastMCP):
                 results: typing.List[WorkflowHandlerResult] = self._results(node, result)
 
                 end = time.time()
-                yield WorkflowActionNodeEnd(
-                    id=action_id, node=ref, results=results, run_id=run_id, timestamp=end, duration=end - start
+                yield WorkflowActionNode(
+                    id=action_id, node=ref, data=data, results=results, run_id=run_id,
+                    timestamp=end, duration=end - start
                 ).model_dump()
             except Exception as e:  # noqa
                 logger.exception('handler exception')
@@ -216,7 +227,15 @@ class WorkflowEngine(FastMCP):
                 raise e
 
         else:
-            yield WorkflowActionDefault(node=ref, data=data, run_id=run_id).model_dump()
+            # result and complete don't have handlers.
+            yield WorkflowActionNode(
+                id=action_id, node=ref, data=data, results=[], run_id=run_id,
+                timestamp=time.time(), duration=0
+            ).model_dump()
+
+            if node.type == 'complete':
+                raise _WorkflowCompleteException(data)
+
             results: typing.List[WorkflowHandlerResult] = self._results(node, data)
 
         for result in results:
@@ -227,11 +246,14 @@ class WorkflowEngine(FastMCP):
             ):
                 yield status
 
+    async def get_workflow(self, name: str):
+        return self._get_workflow(name)
+
     async def run_workflow(self, name: str, data: dict = None, *, run_id: str = None):
         start = time.time()
         usage: list[WorkflowModelUsage] = []
 
-        workflow = self._get_workflow(name)
+        workflow = await self.get_workflow(name)
         if not workflow:
             logger.error('Workflow not found: %s', name)
             raise ValueError(f'Workflow not found: {name}')
@@ -295,7 +317,10 @@ class WorkflowEngine(FastMCP):
                         workflow, node, data=payload, nodes=nodes,
                         sessions=sessions, usage=usage, run_id=run_id, mocks=mocks,
                 ):
+                    # check for result
                     yield status
+            except _WorkflowCompleteException:
+                pass
             except:  # noqa
                 success = False
 

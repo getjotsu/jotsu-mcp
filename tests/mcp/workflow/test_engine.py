@@ -1,9 +1,12 @@
 import pydantic
 import pytest
 
-from jotsu.mcp.types import Workflow, WorkflowServer
-from jotsu.mcp.types.models import WorkflowNode, WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode, \
+from jotsu.mcp.types import (
+    Workflow, WorkflowServer,
+    WorkflowNode,
+    WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode,
     WorkflowEvent
+)
 from jotsu.mcp.workflow import WorkflowEngine
 from jotsu.mcp.workflow.handler import WorkflowHandler
 
@@ -68,7 +71,7 @@ async def test_engine_default_handler():
 
     trace = [x async for x in engine.run_workflow('test-workflow')]
     assert len(trace) == 3
-    assert trace[1]['action'] == 'default'
+    assert trace[1]['action'] == 'node'
 
 
 async def test_engine_workflow_not_found(mocker):
@@ -153,7 +156,7 @@ async def test_engine_mock():
     assert len(trace) == 5   # no handler for other node so no start/end.
 
     node = trace[3]
-    assert node['action'] == 'default'
+    assert node['action'] == 'node'
     assert node['data'] == {'foo': 'bar', 'baz': '123'}
 
 
@@ -176,5 +179,19 @@ async def test_engine_mock_replace():
     assert len(trace) == 5   # no handler for other node so no start/end.
 
     node = trace[3]
-    assert node['action'] == 'default'
+    assert node['action'] == 'node'
     assert node['data'] == {'baz': '123'}
+
+
+async def test_engine_workflow_complete():
+    workflow = Workflow(id='test-workflow', name='Test', start_node_id='1')
+
+    workflow.servers.append(WorkflowServer(id='test-server', url=pydantic.AnyHttpUrl('https://example.com/mcp/')))
+
+    workflow.nodes.append(
+        WorkflowNode(id='1', name='complete', type='complete')
+    )
+    engine = WorkflowEngine([workflow], handler_cls=MockHandler)
+
+    trace = [x async for x in engine.run_workflow('test-workflow', data={'foo': 'bar'})]
+    assert len(trace) == 3   # 1 per node + workflow start/end

@@ -129,6 +129,20 @@ class WorkflowPickNode(WorkflowNode):
     expressions: typing.Dict[str, str]
 
 
+class WorkflowResultNode(WorkflowNode):
+    """ Result candidate node.  The *last* result node encountered is the result node.
+    The workflow does not automatically stop.  To end the workflow and return the result use a
+    complete node instead.
+    """
+    type: typing.Literal['result'] = 'result'
+
+
+class WorkflowCompleteNode(WorkflowNode):
+    """ End the workflow and return the result.
+    """
+    type: typing.Literal['complete'] = 'complete'
+
+
 class WorkflowModelNode(WorkflowNode):
     model: str
     prompt: str | None = None
