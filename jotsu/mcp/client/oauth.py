@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 import httpx
 import pydantic
+from httpx import USE_CLIENT_DEFAULT
 
 from mcp.server.auth.handlers.token import (
     AuthorizationCodeRequest as BaseAuthorizationCodeRequest,
@@ -85,7 +86,7 @@ class OAuth2AuthorizationCodeClient:
     ) -> OAuthToken:
         """Call the authorization endpoint to obtain an access token."""
 
-        async with httpx.AsyncClient(event_hooks={'request': [log_request]}) as httpx_client:
+        async with (httpx.AsyncClient(event_hooks={'request': [log_request]}) as httpx_client):
             req = AuthorizationCodeRequest(
                 grant_type='authorization_code',
                 code=code,
@@ -96,10 +97,17 @@ class OAuth2AuthorizationCodeClient:
             )
             if code_verifier:
                 req.code_verifier = code_verifier
+
+            auth = (self.client_id, self.client_secret) \
+                if self.client_id and self.client_secret \
+                else USE_CLIENT_DEFAULT
+
+            data = req.model_dump(mode='json', exclude_unset=True)
+            logger.debug(data)
             res = await httpx_client.post(
                 self.token_endpoint,
-                data=req.model_dump(mode='json', exclude_unset=True),
-                auth=(self.client_id, self.client_secret)
+                data=data,
+                auth=auth
             )
             if res.status_code != 200:
                 logger.warning('%d %s: %s', res.status_code, res.reason_phrase, res.text)
@@ -143,7 +151,7 @@ class OAuth2AuthorizationCodeClient:
         """
         # Server Metadata Discovery (SHOULD)
         url = utils.server_url('/.well-known/oauth-authorization-server', url=base_url)
-        logger.debug('Trying server metadata discovery at %s', url)
+        logger.info('Trying server metadata discovery at %s', url)
         try:
             async with httpx.AsyncClient(event_hooks={'request': [log_request]}) as httpx_client:
                 res = await httpx_client.get(url)
@@ -174,10 +182,13 @@ class OAuth2AuthorizationCodeClient:
         :param redirect_uris:
         :return:
         """
-        logger.debug('Trying dynamic client registration at %s', registration_endpoint)
+        logger.info('Trying dynamic client registration at %s', registration_endpoint)
 
         async with httpx.AsyncClient() as httpx_client:
-            res = await httpx_client.post(registration_endpoint, json={'redirect_uris': redirect_uris})
+            req = {'redirect_uris': redirect_uris}
+            logger.debug(req)
+
+            res = await httpx_client.post(registration_endpoint, json=req)
             res.raise_for_status()
 
             client = res.json()

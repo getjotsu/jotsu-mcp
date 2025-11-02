@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import httpx
 
-from mcp import ClientSession
+from mcp import ClientSession, McpError
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.server.auth.provider import RefreshToken
 
@@ -35,12 +35,27 @@ class MCPClientSession(ClientSession):
         return self._server
 
     async def load(self) -> WorkflowServerFull:
-        result = await self.list_tools()
-        self._server.tools.extend(result.tools)
-        result = await self.list_resources()
-        self._server.resources.extend(result.resources)
-        result = await self.list_prompts()
-        self._server.prompts.extend(result.prompts)
+        # Some MCP servers will throw an error for list actions when they don't have any.
+        # e.g. Clickup throws an error for list_resources since it doesn't have any instead of
+        # just returning an empty list.
+        try:
+            result = await self.list_tools()
+            self._server.tools.extend(result.tools)
+        except McpError as e:
+            logger.warning(f'MCP error: {e}')
+
+        try:
+            result = await self.list_resources()
+            self._server.resources.extend(result.resources)
+        except McpError as e:
+            logger.warning(f'MCP error: {e}')
+
+        try:
+            result = await self.list_prompts()
+            self._server.prompts.extend(result.prompts)
+        except McpError as e:
+            logger.warning(f'MCP error: {e}')
+
         return self._server
 
 

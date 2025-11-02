@@ -95,6 +95,8 @@ class ToolMixin(ABC):
         required = input_schema.get('required', [])
         input_schema['required'] = [r for r in required if r != 'kwargs']
 
+        input_schema['additionalProperties'] = True
+
         try:
             jsonschema.validate(instance=data, schema=input_schema)
         except jsonschema.ValidationError as e:

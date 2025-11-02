@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import pytest
 import pydantic
 import httpx
+from mcp import McpError, ErrorData
 
 from mcp.shared.auth import OAuthToken
 
@@ -217,6 +218,45 @@ async def test_client_session(mocker):
     list_tools.assert_called_once()
     list_resources.assert_called_once()
     list_prompts.assert_called_once()
+
+
+async def test_client_session_error(mocker):
+    logger_warning = mocker.patch('jotsu.mcp.client.client.logger.warning',)
+
+    server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
+    session = MCPClientSession(
+        read_stream=mocker.Mock(), write_stream=mocker.Mock(), client=mocker.Mock(), server=server
+    )
+
+    list_tools = mocker.patch.object(
+        session, 'list_tools', new_callable=mocker.AsyncMock,
+        side_effect=McpError(ErrorData(code=-1, message='error'))
+    )
+    list_tools.return_value = mocker.Mock()
+    list_tools.return_value.tools = []
+
+    list_resources = mocker.patch.object(
+        session, 'list_resources', new_callable=mocker.AsyncMock,
+        side_effect=McpError(ErrorData(code=-1, message='error'))
+    )
+    list_resources.return_value = mocker.Mock()
+    list_resources.return_value.resources = []
+
+    list_prompts = mocker.patch.object(
+        session, 'list_prompts', new_callable=mocker.AsyncMock,
+        side_effect=McpError(ErrorData(code=-1, message='error'))
+    )
+    list_prompts.return_value = mocker.Mock()
+    list_prompts.return_value.prompts = []
+
+    server = await session.load()
+    assert server
+
+    list_tools.assert_called_once()
+    list_resources.assert_called_once()
+    list_prompts.assert_called_once()
+
+    assert logger_warning.call_count == 3
 
 
 def test_split_scopes():
