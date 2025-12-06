@@ -1,7 +1,10 @@
-import pytest
+from copy import deepcopy
 
+import pytest  # noqa
+
+from jotsu.mcp.types import WorkflowToolNode
 from jotsu.mcp.types.exceptions import JotsuException
-from jotsu.mcp.types.models import WorkflowMCPNode, WorkflowLoopNode, WorkflowSwitchNode, WorkflowFunctionNode, \
+from jotsu.mcp.types.models import WorkflowLoopNode, WorkflowSwitchNode, WorkflowFunctionNode, \
     WorkflowTransformNode, WorkflowTransform
 from jotsu.mcp.types.rules import GreaterThanEqualRule, LessThanRule
 from jotsu.mcp.workflow import WorkflowEngine
@@ -10,7 +13,7 @@ from jotsu.mcp.workflow.handler import WorkflowHandler
 
 async def test_handler_bad_session(mocker):
     engine = WorkflowEngine([])
-    node = WorkflowMCPNode(id='1', name='test-tool', type='tool', server_id='test')
+    node = WorkflowToolNode(id='1', name='test-tool', type='tool', server_id='test')
 
     handler = WorkflowHandler(engine=engine)
     sessions = mocker.AsyncMock()
@@ -30,7 +33,7 @@ async def test_handler_switch():
 
     handler = WorkflowHandler(engine=engine)
 
-    results = await handler.handle_switch({'x': {'y': 3}}, node=node)
+    results = [item async for item in handler.handle_switch({'x': {'y': 3}}, node=node)]
 
     expected = [
         {'edge': 'e2', 'data': {'x': {'y': 3}}},
@@ -45,7 +48,9 @@ async def test_handler_loop():
     node = WorkflowLoopNode(id='1', name='test-loop', expr='lines', edges=['e1', 'e2'])
 
     handler = WorkflowHandler(engine=engine)
-    results = await handler.handle_loop({'lines': ['1', '2', '3']}, node=node)
+
+    # loop mutate the internal data!
+    results = [deepcopy(item) async for item in handler.handle_loop({'lines': ['1', '2', '3']}, node=node)]
 
     expected = [
         {'edge': 'e1', 'data': {'lines': ['1', '2', '3'], '__each__': '1'}},
@@ -68,7 +73,8 @@ async def test_handler_loop_rules():
 
     handler = WorkflowHandler(engine=engine)
 
-    results = await handler.handle_loop({'lines': [1, 2, 3]}, node=node)
+    # items can be mutated by the loop.
+    results = [deepcopy(item) async for item in handler.handle_loop({'lines': [1, 2, 3]}, node=node)]
 
     expected = [
         {'edge': 'e1', 'data': {'lines': [1, 2, 3], '__each__': 2}},
@@ -142,7 +148,7 @@ async def test_handler_transform_move():
     )
 
     handler = WorkflowHandler(engine=engine)
-    results = await handler.handle_transform({'a': 3}, node=node)
+    results = [item async for item in handler.handle_transform({'a': 3}, node=node)]
 
     expected = [
         {'edge': 'e1', 'data': {'b': 3}}
@@ -163,7 +169,7 @@ async def test_handler_transform_set():
     )
 
     handler = WorkflowHandler(engine=engine)
-    results = await handler.handle_transform({'a': 3}, node=node)
+    results = [item async for item in handler.handle_transform({'a': 3}, node=node)]
 
     expected = [
         {'edge': 'e1', 'data': {'a': 3, 'b': {'foo': {'bar': '6'}}}}
@@ -184,7 +190,7 @@ async def test_handler_transform_set_constant():
     )
 
     handler = WorkflowHandler(engine=engine)
-    results = await handler.handle_transform({'a': {'b': 3}}, node=node)
+    results = [item async for item in handler.handle_transform({'a': {'b': 3}}, node=node)]
 
     expected = [
         {'edge': 'e1', 'data': {'a': {'b': 'c'}}}
@@ -205,6 +211,6 @@ async def test_handler_transform_delete():
     )
 
     handler = WorkflowHandler(engine=engine)
-    results = await handler.handle_transform({'a': 3}, node=node)
+    results = [item async for item in handler.handle_transform({'a': 3}, node=node)]
 
     assert [x.model_dump() for x in results] == [{'edge': 'e1', 'data': {}}]

@@ -1,0 +1,34 @@
+{
+    "id": "post",
+    "description": "Test running a node after a result e.g. for an email notification",
+    "nodes": [
+        {
+            "id": "result1",
+            "type": "result",
+            "edges": ["node:transform"]
+        },
+        {
+            "id": "node:transform",
+            "type": "transform",
+            "edges": [
+                "result2"
+            ],
+            "transforms": [
+                {
+                    "type": "set",
+                    "source": "2",
+                    "target": "value",
+                    "datatype": "integer"
+                }
+            ]
+        },
+        {
+            "id": "result2",
+            "type": "result",
+            "edges": []
+        }
+    ],
+    "data": {
+        "value": 1
+    }
+}

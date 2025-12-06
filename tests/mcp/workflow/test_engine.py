@@ -87,10 +87,10 @@ async def test_engine_workflow_not_found(mocker):
 async def test_engine_workflow_failed(mocker):
 
     workflow = Workflow(id='test-workflow', name='Test', start_node_id='1')
-    workflow.nodes.append(WorkflowNode(id='1', name='other', type='other'))
+    workflow.nodes.append(WorkflowNode(id='1', name='other', type='other', edges=['1']))
 
     exception_group = ExceptionGroup('group', [Exception('test')])
-    mocker.patch(__name__ + '.MockHandler.handle_other', side_effect=exception_group)
+    mocker.patch(__name__ + '.MockHandler.handle_other', side_effect=exception_group, new_callable=mocker.AsyncMock)
     engine = WorkflowEngine([workflow], handler_cls=MockHandler)
 
     trace = [x async for x in engine.run_workflow('test-workflow', data={'foo': 'bar'})]
@@ -195,3 +195,26 @@ async def test_engine_workflow_complete():
 
     trace = [x async for x in engine.run_workflow('test-workflow', data={'foo': 'bar'})]
     assert len(trace) == 3   # 1 per node + workflow start/end
+
+
+async def test_engine_mock_iterator():
+    workflow = Workflow(id='test-workflow', name='Test', start_node_id='1')
+
+    workflow.servers.append(WorkflowServer(id='test-server', url=pydantic.AnyHttpUrl('https://example.com/mcp/')))
+
+    workflow.nodes.append(WorkflowToolNode(id='1', name='tool', server_id='test-server', edges=['2']))
+    workflow.nodes.append(WorkflowNode(id='2', name='other', type='other'))
+
+    engine = WorkflowEngine([workflow])
+
+    data = {
+        '__mocks__': {'1': [{'data': {'baz': '123'}, 'edge': '2'}]},
+        'foo': 'bar'
+    }
+
+    trace = [x async for x in engine.run_workflow('test-workflow', data=data)]
+    assert len(trace) == 5   # no handler for other node so no start/end.
+
+    node = trace[3]
+    assert node['action'] == 'node'
+    assert node['data'] == {'baz': '123'}

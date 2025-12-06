@@ -12,11 +12,11 @@ from mcp.types import Resource
 from jotsu.mcp.types import Workflow
 from jotsu.mcp.local import LocalMCPClient
 from jotsu.mcp.client.client import MCPClient
-from jotsu.mcp.types.models import WorkflowNode, WorkflowModelUsage, WorkflowData, slug
+from jotsu.mcp.types.models import WorkflowNode, WorkflowModelUsage, WorkflowData, slug, WorkflowEvent
 
 from .handler import WorkflowHandler, WorkflowHandlerResult
+from .handler.utils import is_async_generator, is_result_or_complete_node
 from .sessions import WorkflowSessionManager
-
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,7 @@ class WorkflowActionEnd(WorkflowAction):
     workflow: _WorkflowRef
     duration: float
     usage: list[WorkflowModelUsage]
+    result: dict | None = None
 
 
 class WorkflowActionFailed(WorkflowAction):
@@ -97,7 +98,6 @@ class WorkflowActionNode(WorkflowAction):
     action: typing.Literal['node-end'] = 'node'
     node: _WorkflowNodeRef
     data: WorkflowData
-    results: typing.List[WorkflowHandlerResult]
     duration: float
 
 
@@ -136,9 +136,9 @@ class WorkflowEngine(FastMCP):
         self.add_tool(self.run_workflow, name='workflow')
 
         for workflow in self._workflows:
-            name = workflow.name if workflow.name else workflow.id
+            self._preprocess_workflow(workflow)
             resource = Resource(
-                name=name,
+                name=workflow.name,
                 description=workflow.description,
                 uri=pydantic.AnyUrl(f'workflow://{workflow.id}/'),
                 mimeType='application/json'
@@ -149,29 +149,6 @@ class WorkflowEngine(FastMCP):
     def handler(self) -> WorkflowHandler:
         return self._handler
 
-    def _get_workflow(self, name: str) -> Workflow | None:
-        for workflow in self._workflows:
-            if workflow.id == name:
-                return workflow
-        for workflow in self._workflows:
-            if workflow.name == name:
-                return workflow
-        return None
-
-    @staticmethod
-    def _get_tb(tb):
-        for frame in traceback.extract_tb(tb, 64):
-            yield _WorkflowTracebackFrame(
-                filename=frame.filename, lineno=frame.lineno, func_name=frame.name, text=frame.line
-            )
-
-    @staticmethod
-    def _results(
-            node: WorkflowNode, values: dict | typing.List[WorkflowHandlerResult]
-    ) -> typing.List[WorkflowHandlerResult]:
-        return [WorkflowHandlerResult(edge=edge, data=values) for edge in node.edges] \
-            if isinstance(values, dict) else values
-
     async def _run_workflow_node(
             self, workflow: Workflow, node: WorkflowNode, data: dict, *,
             nodes: typing.Dict[str, WorkflowNode], sessions: WorkflowSessionManager, usage: list[WorkflowModelUsage],
@@ -180,33 +157,41 @@ class WorkflowEngine(FastMCP):
         ref = _WorkflowNodeRef.from_node(node)
 
         action_id = slug()
-        method = getattr(self._handler, f'handle_{node.type}', None)
-        if method:
+        handler = getattr(self._handler, f'handle_{node.type}', None)
+        if handler:
             start = time.time()
             yield WorkflowActionNodeStart(
                 node=ref, data=data, run_id=run_id, timestamp=start
             ).model_dump()
 
             try:
-                if node.id not in mocks:
-                    result = await method(
-                        data, action_id=action_id, workflow=workflow, node=node, sessions=sessions, usage=usage
-                    )
-                else:
-                    # Mocks/testing
-                    mock = mocks[node.id].copy()
-                    mock_type = mock.pop(self.MOCK_TYPE, '')
-                    if mock_type.lower() == 'replace':
-                        result = mock
-                    else:
-                        result = data | mock
-                results: typing.List[WorkflowHandlerResult] = self._results(node, result)
+                kwargs = {'action_id': action_id, 'workflow': workflow, 'sessions': sessions, 'usage': usage}
+                async for handler_result in self._iterate_handler(node, handler, data, mocks=mocks, **kwargs):
+                    next_node = nodes[handler_result.edge]
+                    async for child_result in self._run_workflow_node(
+                            workflow, next_node, handler_result.data, nodes=nodes,
+                            sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
+                    ):
+                        yield child_result
+                        data = child_result['data'] if 'data' in child_result else data
 
                 end = time.time()
                 yield WorkflowActionNode(
-                    id=action_id, node=ref, data=data, results=results, run_id=run_id,
+                    id=action_id, node=ref, data=data, run_id=run_id,
                     timestamp=end, duration=end - start
                 ).model_dump()
+
+                end_node_id = getattr(node, 'end_node_id', None)
+                if end_node_id:
+                    async for child_result in self._run_workflow_node(
+                            workflow, nodes[end_node_id], data, nodes=nodes,
+                            sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
+                    ):
+                        yield child_result
+                        data = child_result['data'] if 'data' in child_result else data
+
+            except _WorkflowCompleteException as e:
+                raise e
             except Exception as e:  # noqa
                 logger.exception('handler exception')
 
@@ -229,22 +214,20 @@ class WorkflowEngine(FastMCP):
         else:
             # result and complete don't have handlers.
             yield WorkflowActionNode(
-                id=action_id, node=ref, data=data, results=[], run_id=run_id,
+                id=action_id, node=ref, data=data, run_id=run_id,
                 timestamp=time.time(), duration=0
             ).model_dump()
 
             if node.type == 'complete':
                 raise _WorkflowCompleteException(data)
 
-            results: typing.List[WorkflowHandlerResult] = self._results(node, data)
-
-        for result in results:
-            node = nodes[result.edge]
-            async for status in self._run_workflow_node(
-                    workflow, node, result.data, nodes=nodes,
-                    sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
-            ):
-                yield status
+            for node_id in node.edges:
+                next_node = nodes[node_id]
+                async for child_data in self._run_workflow_node(
+                        workflow, next_node, data, nodes=nodes,
+                        sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
+                ):
+                    yield child_data
 
     async def get_workflow(self, name: str):
         return self._get_workflow(name)
@@ -252,6 +235,7 @@ class WorkflowEngine(FastMCP):
     async def run_workflow(self, name: str, data: dict = None, *, run_id: str = None):
         start = time.time()
         usage: list[WorkflowModelUsage] = []
+        workflow_result_data: dict | None = None
 
         workflow = await self.get_workflow(name)
         if not workflow:
@@ -293,7 +277,11 @@ class WorkflowEngine(FastMCP):
                 return
 
         nodes = {node.id: node for node in workflow.nodes}
-        node = nodes.get(workflow.start_node_id)
+
+        start_node_id = workflow.start_node_id
+        if not start_node_id:
+            start_node_id = workflow.nodes[0].id if len(workflow.nodes) else None
+        node = nodes.get(start_node_id) if start_node_id else None
 
         if not node:
             end = time.time()
@@ -313,13 +301,16 @@ class WorkflowEngine(FastMCP):
         try:
             success = True
             try:
-                async for status in self._run_workflow_node(
+                async for result in self._run_workflow_node(
                         workflow, node, data=payload, nodes=nodes,
                         sessions=sessions, usage=usage, run_id=run_id, mocks=mocks,
                 ):
                     # check for result
-                    yield status
+                    yield result
+                    if is_result_or_complete_node(result):
+                        workflow_result_data = result.get('data')
             except _WorkflowCompleteException:
+                # This works since the yield happens before the exception.
                 pass
             except:  # noqa
                 success = False
@@ -329,7 +320,8 @@ class WorkflowEngine(FastMCP):
 
             if success:
                 yield WorkflowActionEnd(
-                    workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
+                    result=workflow_result_data, workflow=ref,
+                    timestamp=end, duration=duration, usage=usage, run_id=run_id
                 ).model_dump()
                 logger.info(
                     "Workflow '%s' completed successfully in %s seconds.",
@@ -345,3 +337,57 @@ class WorkflowEngine(FastMCP):
                 )
         finally:
             await sessions.close()
+
+    @staticmethod
+    def _preprocess_workflow(workflow: Workflow):
+        workflow.name = workflow.name or workflow.id
+        workflow.event = workflow.event or WorkflowEvent()
+
+        for node in workflow.nodes:
+            node.name = node.name or node.id
+
+    def _get_workflow(self, name: str) -> Workflow | None:
+        for workflow in self._workflows:
+            if workflow.id == name:
+                return workflow
+        for workflow in self._workflows:
+            if workflow.name == name:
+                return workflow
+        return None
+
+    @staticmethod
+    def _get_tb(tb):
+        for frame in traceback.extract_tb(tb, 64):
+            yield _WorkflowTracebackFrame(
+                filename=frame.filename, lineno=frame.lineno, func_name=frame.name, text=frame.line
+            )
+
+    async def _iterate_handler(
+            self, node: WorkflowNode, method, data, *, mocks: typing.Dict[str, dict], **kwargs
+    ) -> typing.AsyncIterator[WorkflowHandlerResult]:
+        # A handler returns either a simple dict or an async iterator of WorkflowHandlerResults.
+        if node.id not in mocks:
+            if is_async_generator(method):
+                # Test for a generator which returns an iterator...
+                async for result in method(data, node=node, **kwargs):
+                    yield result
+            else:
+                for node_id in node.edges:
+                    data = await method(data, node=node, **kwargs)
+                    yield WorkflowHandlerResult(edge=node_id, data=data)
+        else:
+            mock = mocks[node.id].copy()
+
+            if isinstance(mock, list):
+                for item in mock:
+                    # All list mocks are 'replace'.
+                    yield WorkflowHandlerResult(**item)
+            else:
+                mock_type = mock.pop(self.MOCK_TYPE, '')
+                if mock_type.lower() == 'replace':
+                    result = mock
+                else:
+                    result = data | mock
+
+                for node_id in node.edges:
+                    yield WorkflowHandlerResult(edge=node_id, data=result)

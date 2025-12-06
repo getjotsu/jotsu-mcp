@@ -36,25 +36,23 @@ class MCPClientSession(ClientSession):
 
     async def load(self) -> WorkflowServerFull:
         # Some MCP servers will throw an error for list actions when they don't have any.
-        # e.g. Clickup throws an error for list_resources since it doesn't have any instead of
-        # just returning an empty list.
         try:
             result = await self.list_tools()
             self._server.tools.extend(result.tools)
         except McpError as e:
-            logger.warning(f'MCP error: {e}')
+            logger.debug(f'[list_tools] MCP error: {e}')
 
         try:
             result = await self.list_resources()
             self._server.resources.extend(result.resources)
         except McpError as e:
-            logger.warning(f'MCP error: {e}')
+            logger.debug(f'[list_resources] MCP error: {e}')
 
         try:
             result = await self.list_prompts()
             self._server.prompts.extend(result.prompts)
         except McpError as e:
-            logger.warning(f'MCP error: {e}')
+            logger.debug(f'[list_prompts] MCP error: {e}')
 
         return self._server
 

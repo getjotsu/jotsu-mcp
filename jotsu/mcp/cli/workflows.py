@@ -4,14 +4,16 @@ import sys
 
 import aiofiles
 import click
+import jsonc
 from dotenv import load_dotenv
 
 from jotsu.mcp.local import LocalMCPClient
-from jotsu.mcp.types import Workflow, WorkflowEvent, slug
+from jotsu.mcp.types import Workflow, slug
 from jotsu.mcp.workflow.engine import WorkflowEngine
 
 from .base import cli
 from . import utils
+from ..types.models import WorkflowResultNode
 
 load_dotenv()
 
@@ -39,8 +41,7 @@ async def init(path: str, id_: str, name: str, description: str, force: bool):
 
     workflow_id = id_ or slug()
     flow = Workflow(id=workflow_id, name=name or workflow_id, description=description)
-
-    flow.event = WorkflowEvent(name='Manual', type='manual')
+    flow.nodes.append(WorkflowResultNode(id=slug()))
 
     async with aiofiles.open(path, 'w') as fp:
         await fp.write(flow.model_dump_json(indent=4))
@@ -64,12 +65,12 @@ async def run(path: str, no_format: bool, data: str):
             data = json.loads(data)
         else:
             with open(data, 'r') as fp:
-                data = json.load(fp)
+                data = jsonc.load(fp)
 
     async with aiofiles.open(path) as f:
         content = await f.read()
 
-    flow = Workflow(**json.loads(content))
+    flow = Workflow(**jsonc.loads(content))
 
     engine = WorkflowEngine(flow, client=LocalMCPClient())
     async for msg in engine.run_workflow(flow.id, data):

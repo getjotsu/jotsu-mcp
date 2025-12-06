@@ -3,7 +3,7 @@ import typing
 
 from jotsu.mcp.client import MCPClient
 from jotsu.mcp.client.client import MCPClientSession
-from jotsu.mcp.types import Workflow, WorkflowServer
+from jotsu.mcp.types import Workflow, WorkflowServer, WorkflowMCPNode
 
 
 class WorkflowSessionManager:
@@ -27,7 +27,7 @@ class WorkflowSessionManager:
     def workflow(self) -> Workflow:
         return self._workflow
 
-    async def get_session(self, server: WorkflowServer) -> MCPClientSession:
+    async def get_session(self, session_id: str) -> MCPClientSession:
         if self._closed:
             raise RuntimeError('WorkflowSessionManager is closed')
 
@@ -35,9 +35,23 @@ class WorkflowSessionManager:
             if self._owner_task is None:
                 self._owner_task = asyncio.current_task()
 
-            session = self._sessions.get(server.id)
+            session = self._sessions.get(session_id)
             if session is not None:
                 return session
+
+            server = self._get_server(session_id)
+            if not server:
+                node = self._get_node(session_id)
+                if not node:
+                    raise RuntimeError(f'Invalid session id: {session_id}')
+
+                server = WorkflowServer(
+                    id=session_id,
+                    url=node.url,
+                    headers=node.headers,
+                    client_info=node.client_info,
+                )
+                self.workflow.servers.append(server)
 
             # Enter the client's context here; we own the exit later.
             cm = self._client.session(server)  # async context manager
@@ -73,3 +87,16 @@ class WorkflowSessionManager:
                 pass
 
         self._cms.clear()
+
+    def _get_server(self, server_id: str) -> WorkflowServer | None:
+        for server in self.workflow.servers:
+            if server.id == server_id:
+                return server
+        return None
+
+    def _get_node(self, node_id: str) -> WorkflowMCPNode | None:
+        for node in self.workflow.nodes:
+            if node.id == node_id:
+                if getattr(node, 'url', None):
+                    return node
+        return None

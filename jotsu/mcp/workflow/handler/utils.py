@@ -1,9 +1,8 @@
+import inspect
 import json
 import jsonata
 
-from jotsu.mcp.types import JotsuException
-from jotsu.mcp.types.models import WorkflowModelNode, WorkflowServer
-from jotsu.mcp.workflow.sessions import WorkflowSessionManager
+from jotsu.mcp.types.models import WorkflowModelNode
 from jotsu.mcp.workflow.utils import pybars_render
 
 
@@ -46,8 +45,16 @@ def jsonata_value(data: dict, expr: str):
     return expr.evaluate(data)
 
 
-def get_server_from_session_manager(sessions: WorkflowSessionManager, server_id: str) -> WorkflowServer:
-    for server in sessions.workflow.servers:
-        if server.id == server_id:
-            return server
-    raise JotsuException(f'Server not found: {server_id}')
+def is_async_generator(handler) -> bool:
+    # handle both function and bound method
+    func = getattr(handler, '__func__', handler)
+    return inspect.isasyncgenfunction(func)
+
+
+def is_result_or_complete_node(result: dict) -> bool:
+    if result:
+        node = result.get('node')
+        if node:
+            node_type = node.get('type')
+            return node_type in ['result', 'complete']
+    return False

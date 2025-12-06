@@ -1,0 +1,63 @@
+/**
+ * Read through all the results of a paginated tool.
+ *
+ * - Call the test_pagination_cursor tool.  count=17 so 1 full page and one partial page.
+ * - For each result, add the value to 'sum' using a transform node with a JSONata expression.
+ * - Clean up the result using a 'pick' node so the final result is {"sum":153} - the sum of 1 to 17.
+ *
+ * For a complete pagination example, see pagination.jsonc.
+ */
+{
+    "id": "pagination",
+    "data": {
+        "sum": 0,
+        "count": 17
+    },
+    "nodes": [
+        {
+            "id": "test_pagination_cursor",
+            "type": "tool",
+            "edges": [
+                "loop"
+            ],
+            "url": "https://test.mcp.jotsu.com/mcp"
+        },
+        {
+            "id": "loop",
+            "type": "loop",
+            "edges": [
+                "transform"
+            ],
+            "expr": "items",
+            "end_node_id": "switch"
+        },
+        {
+            "id": "transform",
+            "type": "transform",
+            "transforms": [
+                {
+                    "type": "set",
+                    "source": "sum + __each__.value + 1",
+                    "target": "sum"
+                }
+            ]
+        },
+        {
+            "id": "switch",
+            "type": "switch",
+            "edges": [
+                "test_pagination_cursor",
+                "result"
+            ],
+            "rules": [
+                {"type":  "truthy"}, // If cursor is set, repeat the tool call (index 0 in edges).
+                {"type":  "falsy"}  // If cursor is empty, generate the result.
+            ],
+            "expr": "cursor"
+        },
+        {
+            "id": "result",
+            "type": "result"
+        }
+    ]
+}

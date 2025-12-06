@@ -38,7 +38,7 @@ class ToolMixin(ABC):
             self, data: dict, *,
             node: WorkflowToolNode, sessions: WorkflowSessionManager, **_kwargs
     ):
-        session = await self._get_session(node.server_id, sessions=sessions)
+        session = await self._get_session(node, sessions=sessions)
         tool_name = node.tool_name if node.tool_name else node.name
 
         tool = await self.get_tool(session, tool_name)

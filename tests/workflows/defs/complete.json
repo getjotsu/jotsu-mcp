@@ -1,0 +1,24 @@
+{
+    "id": "complete",
+    "description": "Test the complete node",
+    "nodes": [
+        {
+            "id": "node:transform",
+            "type": "transform",
+            "edges": [
+                "node:complete"
+            ],
+            "transforms": [
+                {
+                    "type": "set",
+                    "source": "'ok'",
+                    "target": "status"
+                }
+            ]
+        },
+        {
+            "id": "node:complete",
+            "type": "complete"
+        }
+    ]
+}

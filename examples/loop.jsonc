@@ -1,0 +1,62 @@
+/**
+ * Perform iterative actions using the loop node.
+ *
+ * - Call the test_pagination_cursor tool and loop through ONLY the first page of results.
+ * - For each result, add the value to 'sum' using a transform node with a JSONata expression.
+ * - Clean up the result using a 'pick' node so the final result is {"sum":55} - the sum of 1 to 10.
+ *
+ * For a complete pagination example, see pagination.jsonc.
+ */
+{
+    "id": "loop",
+    "data": {
+        "sum": 0
+    },
+    "nodes": [
+        {
+            "id": "test_pagination_cursor",
+            "type": "tool",
+            "edges": [
+                "loop"
+            ],
+            "url": "https://test.mcp.jotsu.com/mcp"
+        },
+        {
+            "id": "loop",
+            "type": "loop",
+            "edges": [
+                "transform"
+            ],
+            "expr": "items"
+        },
+        {
+            "id": "transform",
+            "type": "transform",
+            "edges": [
+                "pick"
+            ],
+            // __each__ holds the result of the loop node (by default).
+            "transforms": [
+                {
+                    "type": "set",
+                    "source": "sum + __each__.value + 1",  //  The iterator is zero-based so add 1.
+                    "target": "sum"
+                }
+            ]
+        },
+        {
+            "id": "pick",
+            "type": "pick",
+            "edges": [
+                "result"
+            ],
+            "expressions": {
+                "sum": "sum"  // Use the sum value unchanged.
+            }
+        },
+        {
+            "id": "result",
+            "type": "result"
+        }
+    ]
+}

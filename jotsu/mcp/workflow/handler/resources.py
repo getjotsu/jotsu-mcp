@@ -28,7 +28,7 @@ class ResourceMixin(ABC):
             self, data: dict, *,
             node: WorkflowMCPNode, sessions: WorkflowSessionManager, **_kwargs
     ):
-        session = await self._get_session(node.server_id, sessions=sessions)
+        session = await self._get_session(node, sessions=sessions)
         uri = str(node.uri)
 
         result: ReadResourceResult = await session.read_resource(node.uri)

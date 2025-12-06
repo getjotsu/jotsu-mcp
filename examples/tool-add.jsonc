@@ -1,0 +1,15 @@
+/**
+ * Call a tool that adds two numbers together (the standard Cloudflare example) on a Typescript server.
+ * The addends are defined in the initial data so the result (stored as value) is always '4'.
+ */
+{
+    "id": "tool-add",
+    "data": {"a": 2, "b": 2},
+    "nodes": [
+        {
+            "id":  "add", "type":  "tool", "edges":  ["complete"],
+            "url": "https://test.mcp.jotsu.com/mcp"
+        },
+        {"id":  "complete", "type":  "complete"}
+    ]
+}

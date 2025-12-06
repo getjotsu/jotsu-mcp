@@ -1,0 +1,23 @@
+/**
+ * This is the default workflow created by running:
+ * jotsu-mcp workflow init
+ *
+ * The result is an empty dict.
+ */
+{
+    "id": "default",
+    "name": "default",
+    "nodes": [
+        {
+            "id": "node:result",
+            "name": null,
+            "description": null,
+            "type": "result",
+            "metadata": null,
+            "edges": []
+        }
+    ],
+    "servers": [],
+    "data": null,
+    "metadata": null
+}

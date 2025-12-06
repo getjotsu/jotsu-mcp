@@ -27,6 +27,7 @@ build-backend = "setuptools.build_meta"
 cli = [
     "click>=8.2.1",
     "aiofiles==24.1.0",
+    "json-with-comments>=1.2.10",
     "pkce>=1.0.3",
     "python-ulid>=3.0.0",
     "python-dotenv>=1.1.0"

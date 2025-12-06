@@ -1,3 +1,4 @@
+import logging
 import typing
 
 import pydantic
@@ -8,13 +9,16 @@ from .rules import Rule
 from .shared import OAuthClientInformationFullWithBasicAuth
 
 
+logger = logging.getLogger(__name__)
+
+
 def slug():
     return str(ULID()).lower()
 
 
 Slug = typing.Annotated[
     str,
-    pydantic.StringConstraints(pattern=r'^[a-z0-9_\-]+$', max_length=255)
+    pydantic.StringConstraints(pattern=r'^[a-z0-9:_\-]+$', max_length=255)
 ]
 WorkflowData = typing.Optional[typing.Dict[str, typing.Any]]
 WorkflowMetadata = typing.Optional[typing.Dict[str, typing.Any]]
@@ -22,9 +26,9 @@ WorkflowJsonSchema = typing.Optional[typing.Dict[str, typing.Any]]
 
 
 class WorkflowEvent(pydantic.BaseModel):
-    name: str  # Human=readable
+    type: str = 'event'
+    name: str = 'Event'  # Human-readable
     description: str | None = None
-    type: str
     json_schema: WorkflowJsonSchema = None
     metadata: WorkflowMetadata = None
 
@@ -35,7 +39,7 @@ class WorkflowNode(pydantic.BaseModel):
     """
     model_config = pydantic.ConfigDict(extra='allow')
     id: Slug
-    name: str  # Human=readable
+    name: str | None = None  # Human=readable
     description: str | None = None
     type: str
     metadata: WorkflowMetadata = None
@@ -57,9 +61,23 @@ class WorkflowRulesNode(WorkflowNode):
 class WorkflowMCPNode(WorkflowNode):
     """ Base class for WorkflowNodes which are MCP tools, resources or prompts.
     """
-    server_id: str
+    server_id: str | None = None
+    url: pydantic.AnyHttpUrl | None = None
+    headers: typing.Dict[str, str] = pydantic.Field(default_factory=dict)
+    client_info: OAuthClientInformationFullWithBasicAuth | None = None
+
     # Where the output goes in the result.
     member: str | None = None
+
+    @pydantic.model_validator(mode='after')
+    def validate_exclusive(self):
+        if (self.server_id is None) == (self.url is None):
+            # Both None OR both set -> invalid
+            raise ValueError("Exactly one of 'server_id' or 'url' must be provided.")
+        if self.server_id and (self.headers or self.client_info):
+            logger.warning("When 'server_id' is provided, 'headers' and 'client_info' are ignored.")
+
+        return self
 
 
 class WorkflowToolNode(WorkflowMCPNode):
@@ -107,12 +125,13 @@ class WorkflowSwitchNode(WorkflowRulesNode):
 
 
 class WorkflowLoopNode(WorkflowRulesNode):
-    """ Process each value in a list
+    """ Process each value in a list/array
     """
     type: typing.Literal['loop'] = 'loop'
     expr: str
     # What member will hold the 'each' value.
     member: str | None = None
+    end_node_id: Slug | None = None   # The node to go to after the loop completes.
 
 
 class WorkflowFunctionNode(WorkflowRulesNode):
@@ -178,8 +197,8 @@ class WorkflowServer(pydantic.BaseModel):
     name: str | None = None
     url: pydantic.AnyHttpUrl
     headers: typing.Dict[str, str] = pydantic.Field(default_factory=dict)
-    metadata: WorkflowMetadata = None
     client_info: OAuthClientInformationFullWithBasicAuth | None = None
+    metadata: WorkflowMetadata = None
 
     @pydantic.field_validator('headers', mode='before')
     def lowercase_headers(cls, value):  # noqa
@@ -212,7 +231,7 @@ class Workflow(pydantic.BaseModel):
     name: str | None = None
     description: str | None = None
     event: WorkflowEvent | None = None
-    start_node_id: str | None = None
+    start_node_id: Slug | None = None
     nodes: typing.List[NodeUnion] = pydantic.Field(default_factory=list)
     servers: typing.List[WorkflowServer] = pydantic.Field(default_factory=list)
     # Initial data for this workflow that can be overridden when run.

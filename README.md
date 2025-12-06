@@ -22,8 +22,8 @@ Run it:
 jotsu-mcp workflow run ./workflow.json
 ```
 
-The output is only the start and end messages since the workflow doesn't have any nodes.
-
+The output consists of three messages: the workflow start, the single node’s message, and the workflow end.
+The final result appears in the `result` field of the workflow-end node, which in this example is an empty object.
 
 ## Hello MCP
 The workflow can call a tool from an MCP server.   This allows you to use MCP with models that don't yet support it (really any model other than Claude).
@@ -54,7 +54,7 @@ Add some initial data that the 'greet' tool needs:
 ```json
 {"name": "World"}
 ```
-and tell the workflow where to start:
+By default, the workflow starts with the first node, but you can also explicitly set the start node:
 ```
 "start_node_id": "greet"
 ```
@@ -72,12 +72,6 @@ The type can be any string not already used by the workflow.  In this case, 'out
     "id": "quickstart",
     "name": "quickstart",
     "description": "Simple workflow to interact with the 'hello' MCP server",
-    "event": {
-        "name": "Manual",
-        "type": "manual",
-        "metadata": null
-    },
-    "start_node_id": "greet",
     "nodes": [
         {"id":  "greet", "type":  "tool", "name": "greet", "server_id":  "hello", "edges":  ["output"]},
         {"id":  "output", "type":  "output", "name": "The result"}
@@ -126,3 +120,4 @@ instead there could be many such lines depending upon the actions the workflow t
 uv venv
 uv pip install '.[dev,cli,anthropic,openai,cloudflare,cryptography]'
 ```
+

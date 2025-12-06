@@ -11,12 +11,12 @@ from .utils import jsonata_value
 class TransformMixin(ABC):
 
     @abstractmethod
-    def _handle_rules(self, node: WorkflowRulesNode, data: dict):
-        ...
+    async def _handle_rules(self, node: WorkflowRulesNode, data: dict) -> typing.AsyncIterator[WorkflowHandlerResult]:
+        yield WorkflowHandlerResult(edge='', data=None)  # pragma: no cover
 
     async def handle_transform(
             self, data: dict, *, node: WorkflowTransformNode, **_kwargs
-    ) -> typing.List[WorkflowHandlerResult]:
+    ) -> typing.AsyncIterator[WorkflowHandlerResult]:
         for transform in node.transforms:
             transform = WorkflowTransform(**transform) if isinstance(transform, dict) else transform
             source_value = utils.transform_cast(
@@ -32,4 +32,5 @@ class TransformMixin(ABC):
                 case 'delete':
                     utils.path_delete(data, path=transform.source)
 
-        return self._handle_rules(node, data)
+        async for result in self._handle_rules(node, data):
+            yield result

@@ -1,0 +1,48 @@
+{
+    "id": "loop",
+    "description": "Test a simple loop to generate values=[1, 2, 3]",
+    "nodes": [
+        {
+            "id": "node:loop",
+            "type": "loop",
+            "edges": [
+                "node:transform"
+            ],
+            "expr": "items",
+            "end_node_id": "node:result"
+        },
+        {
+            "id": "node:transform",
+            "type": "transform",
+            "transforms": [
+                {
+                    "type": "set",
+                    "source": "$append(values, __each__.id)",
+                    "target": "values"
+                }
+            ]
+        },
+        {
+            "id": "node:result",
+            "type": "result",
+            "edges": []
+        }
+    ],
+    "data": {
+        "items": [
+            {
+                "id": "1",
+                "value": 1
+            },
+            {
+                "id": "2",
+                "value": 2
+            },
+            {
+                "id": "3",
+                "value": 3
+            }
+        ],
+        "values": []
+    }
+}

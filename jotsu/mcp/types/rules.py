@@ -111,7 +111,7 @@ class TruthyRule(pydantic.BaseModel):
 
 
 class FalsyRule(pydantic.BaseModel):
-    type: typing.Literal['false'] = 'falsy'
+    type: typing.Literal['falsy'] = 'falsy'
 
     @staticmethod
     def test(value: typing.Any) -> bool:

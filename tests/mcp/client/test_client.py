@@ -221,7 +221,7 @@ async def test_client_session(mocker):
 
 
 async def test_client_session_error(mocker):
-    logger_warning = mocker.patch('jotsu.mcp.client.client.logger.warning',)
+    logger_debug = mocker.patch('jotsu.mcp.client.client.logger.debug',)
 
     server = WorkflowServer(id='hello', url=pydantic.AnyHttpUrl('https://hello.mcp.jotsu.com/mcp/'))
     session = MCPClientSession(
@@ -256,7 +256,7 @@ async def test_client_session_error(mocker):
     list_resources.assert_called_once()
     list_prompts.assert_called_once()
 
-    assert logger_warning.call_count == 3
+    assert logger_debug.call_count == 3
 
 
 def test_split_scopes():

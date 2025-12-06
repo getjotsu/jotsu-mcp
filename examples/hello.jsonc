@@ -1,0 +1,20 @@
+/**
+ * Call two resources and a tool from a sample 'hello' MCP server written in Python.
+ */
+{
+    "id": "hello",
+    "nodes": [
+        {"id":  "get_greeting", "type": "resource", "uri": "resource://greeting", "server_id":  "hello", "edges": ["get_config"]},
+        {"id":  "get_config", "type": "resource", "uri": "data://config", "server_id":  "hello", "edges": ["greet"]},
+        {"id":  "greet", "type":  "tool", "server_id":  "hello", "edges":  ["complete"]},
+        {"id":  "complete", "type":  "complete"}
+    ],
+    "servers": [
+        {
+            "id": "hello",
+            "name": "Hello World",
+            "url": "https://hello.mcp.jotsu.com/mcp/"
+        }
+    ],
+   "data": {"name":  "World"}
+}

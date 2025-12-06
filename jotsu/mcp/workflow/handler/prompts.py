@@ -23,7 +23,8 @@ class PromptMixin(ABC):
             self, data: dict, *,
             node: WorkflowMCPNode, sessions: WorkflowSessionManager, **_kwargs
     ):
-        session = await self._get_session(node.server_id, sessions=sessions)
+
+        session = await self._get_session(node, sessions=sessions)
 
         result: GetPromptResult = await session.get_prompt(node.name, arguments=data)
         for message in result.messages:
