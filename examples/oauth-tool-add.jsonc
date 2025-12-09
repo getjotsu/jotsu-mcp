@@ -1,0 +1,14 @@
+/**
+ * Same as tool-add but calls an add tool on an MCP server using OAuth2.
+ */
+{
+    "id": "tool-add",
+    "data": {"a": 2, "b": 2},
+    "nodes": [
+        {
+            "id":  "add", "type":  "tool", "edges":  ["complete"],
+            "url": "https://test-oauth.mcp.jotsu.com/mcp"
+        },
+        {"id":  "complete", "type":  "complete"}
+    ]
+}

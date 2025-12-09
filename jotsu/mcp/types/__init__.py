@@ -3,6 +3,7 @@ from .models import (
     Workflow, WorkflowServer, WorkflowEvent,
     WorkflowNode, WorkflowMCPNode, WorkflowPromptNode, WorkflowResourceNode, WorkflowToolNode,
     WorkflowSwitchNode, WorkflowFunctionNode, WorkflowLoopNode,
+    WorkflowResultNode, WorkflowCompleteNode,
     WorkflowModelUsage, slug
 )
 from .rules import (
@@ -14,7 +15,7 @@ __all__ = [
     JotsuException,
     Workflow, WorkflowNode, WorkflowServer, WorkflowEvent,
     WorkflowNode, WorkflowMCPNode, WorkflowPromptNode, WorkflowResourceNode, WorkflowToolNode,
-    WorkflowSwitchNode, WorkflowFunctionNode, WorkflowLoopNode,
+    WorkflowSwitchNode, WorkflowFunctionNode, WorkflowLoopNode, WorkflowResultNode, WorkflowCompleteNode,
     WorkflowModelUsage,
     Rule, LessThanRule, LessThanEqualRule, GreaterThanRule, GreaterThanEqualRule,
     RegexMatchRule, RegexSearchRule, EqualRule, NotEqualRule, BetweenRule, ContainsRule,

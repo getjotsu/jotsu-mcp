@@ -10,7 +10,8 @@ def get_messages(data: dict, prompt: str):
     messages = data.get('messages', None)
     if messages is None:
         messages = []
-        prompt = data.get('prompt', prompt)
+
+        # Don't use prompt from the messages, it can be constructed if needed using a template.
         if prompt:
             content = pybars_render(prompt, data)
             messages.append({

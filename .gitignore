@@ -14,8 +14,9 @@ wheels/
 # IDE
 .idea/
 
-# Data
+# Test data in the TLD
 /*.json
+/*.jsonl
 
 # Env files
 .env

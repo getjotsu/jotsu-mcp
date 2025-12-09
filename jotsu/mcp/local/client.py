@@ -58,10 +58,13 @@ class LocalMCPClient(MCPClient):
         # Dynamic Client Registration (SHOULD)
         client_info = _client_info(server)
         if not client_info:
-            # NOTE: fail if the server doesn't support DCR.
-            client_info = await OAuth2AuthorizationCodeClient.dynamic_client_registration(
-                registration_endpoint=server_metadata.registration_endpoint, redirect_uris=['http://localhost:8001/']
-            )
+            if server_metadata.registration_endpoint:
+                client_info = await OAuth2AuthorizationCodeClient.dynamic_client_registration(
+                    registration_endpoint=server_metadata.registration_endpoint,
+                    redirect_uris=['http://localhost:8001/']
+                )
+            else:
+                raise RuntimeError(f'No registration endpoint for server: {server.name or server.id}')
 
         queue = Queue()
         httpd = localserver.LocalHTTPServer(queue, request_handler=self._request_handler)

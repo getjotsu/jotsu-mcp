@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+import typing
 from abc import ABC, abstractmethod
 
 import jsonschema
@@ -8,6 +9,7 @@ from mcp.types import CallToolResult, Tool
 
 from jotsu.mcp.client.client import MCPClientSession
 from jotsu.mcp.types import JotsuException, WorkflowToolNode
+from jotsu.mcp.workflow.handler.types import WorkflowHandlerResult
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,7 @@ class ToolMixin(ABC):
                 return tool
         return None
 
-    async def handle_tool(
+    async def _handle_tool(
             self, data: dict, *,
             node: WorkflowToolNode, sessions: WorkflowSessionManager, **_kwargs
     ):
@@ -82,6 +84,19 @@ class ToolMixin(ABC):
                         "Invalid message type '%s' for tool '%s'.", message_type, tool_name
                     )
         return data
+
+    async def handle_tool(
+            self, data: dict, *,
+            node: WorkflowToolNode, sessions: WorkflowSessionManager, **_kwargs
+    ) -> typing.AsyncIterator[WorkflowHandlerResult]:
+        if node.edges:
+            for edge in node.edges:
+                data = await self._handle_tool(data=data, node=node, sessions=sessions, **_kwargs)
+                yield WorkflowHandlerResult(edge=edge, data=data)
+        else:
+            # Tools are the only node with side effects so make sure they are called once even
+            # if node edges are defined.
+            await self._handle_tool(data=data, node=node, sessions=sessions, **_kwargs)
 
     # kwargs is a convention meaning 'all data' - so we have to exclude it.
     @staticmethod

@@ -1,16 +1,8 @@
-import json
-import os
 from copy import deepcopy
 
 from jotsu.mcp.types import Workflow
 from jotsu.mcp.workflow import WorkflowEngine
-
-
-def load_workflow(name: str) -> dict:
-    path = os.path.join(os.path.dirname(__file__), 'defs', name)
-    path = path + '.json' if not path.endswith('.json') else path
-    with open(path) as f:
-        return json.load(f)
+from tests.workflows.utils import load_workflow
 
 
 async def test_workflow_loop():
@@ -44,3 +36,14 @@ async def test_workflow_complete():
 
     result = trace[len(trace) - 1]['result']
     assert result['status'] == 'ok'
+
+
+async def test_workflow_pagination():
+    workflow = load_workflow('pagination')
+
+    engine = WorkflowEngine([Workflow(**workflow)])
+    trace = [deepcopy(x) async for x in engine.run_workflow('pagination')]
+    assert trace[len(trace) - 1]['action'] == 'workflow-end'
+
+    result = trace[len(trace) - 1]['result']
+    assert result['sum'] == 153

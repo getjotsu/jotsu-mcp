@@ -31,9 +31,15 @@ class WorkflowSessionManager:
         if self._closed:
             raise RuntimeError('WorkflowSessionManager is closed')
 
+        current = asyncio.current_task()
         async with self._lock:
             if self._owner_task is None:
                 self._owner_task = asyncio.current_task()
+            elif self._owner_task is not current:
+                raise RuntimeError(  # pragma: no cover
+                    'WorkflowSessionManager used from a different task; '
+                    'this breaks MCP client session cancel scopes.'
+                )
 
             session = self._sessions.get(session_id)
             if session is not None:
@@ -63,7 +69,7 @@ class WorkflowSessionManager:
             self._sessions[server.id] = session
             return session
 
-    async def close(self) -> None:
+    async def aclose(self) -> None:
         """Close all sessions together in LIFO order (like an ExitStack)."""
         if self._closed:
             return

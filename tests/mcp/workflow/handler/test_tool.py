@@ -31,8 +31,9 @@ async def test_handler_tool(mocker):
     sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
     sessions.get_session.return_value = session
 
-    res = await handler.handle_tool({'name': 'foo'}, sessions=sessions, node=node)
-    assert res == {'name': 'foo', 'test_tool': 'xxx'}
+    res = [x async for x in handler.handle_tool({'name': 'foo'}, sessions=sessions, node=node)]
+    assert res == []
+    session.call_tool.assert_called_once()
 
 
 async def test_handler_tool_structured_content(mocker):
@@ -53,8 +54,9 @@ async def test_handler_tool_structured_content(mocker):
     sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
     sessions.get_session.return_value = session
 
-    res = await handler.handle_tool({}, sessions=sessions, node=node)
-    assert res == {'a': 'b'}
+    res = [x async for x in handler.handle_tool({}, sessions=sessions, node=node)]
+    assert res == []
+    session.call_tool.assert_called_once()
 
 
 async def test_handler_tool_structured_content_member(mocker):
@@ -77,8 +79,9 @@ async def test_handler_tool_structured_content_member(mocker):
     sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
     sessions.get_session.return_value = session
 
-    res = await handler.handle_tool({}, sessions=sessions, node=node)
-    assert res == {'foo': {'a': 'b'}}
+    res = [x async for x in handler.handle_tool({}, sessions=sessions, node=node)]
+    assert res == []
+    session.call_tool.assert_called_once()
 
 
 async def test_handler_tool_schema_validation_error(mocker):
@@ -104,7 +107,8 @@ async def test_handler_tool_schema_validation_error(mocker):
     sessions.get_session.return_value = session
 
     with pytest.raises(JotsuException):
-        await handler.handle_tool({}, sessions=sessions, node=node)
+        async for _ in handler.handle_tool({}, sessions=sessions, node=node):
+            ...
 
 
 async def test_handler_tool_error(mocker):
@@ -121,7 +125,8 @@ async def test_handler_tool_error(mocker):
     sessions.get_session.return_value = session
 
     with pytest.raises(JotsuException):
-        await handler.handle_tool({}, sessions=sessions, node=node)
+        async for _ in handler.handle_tool({}, sessions=sessions, node=node):
+            ...
 
 
 async def test_handler_tool_get_none(mocker):
@@ -137,7 +142,8 @@ async def test_handler_tool_get_none(mocker):
     sessions.get_session.return_value = session
 
     with pytest.raises(JotsuException):
-        await handler.handle_tool({}, sessions=sessions, node=node)
+        async for _ in handler.handle_tool({}, sessions=sessions, node=node):
+            ...
 
 
 async def test_handler_tool_bad_type(mocker):
@@ -156,13 +162,16 @@ async def test_handler_tool_bad_type(mocker):
     sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
     sessions.get_session.return_value = session
 
-    assert await handler.handle_tool({}, sessions=sessions, node=node) == {}
+    res = [x async for x in handler.handle_tool({}, sessions=sessions, node=node)]
+    assert res == []
+    session.call_tool.assert_called_once()
 
 
 async def test_handler_tool_structured_output(mocker):
     engine = WorkflowEngine([])
     node = WorkflowToolNode(
-        id='1', name='test-tool', tool_name='test_tool', type='tool', server_id='test', structured_output=True
+        id='1', name='test-tool', tool_name='test_tool', type='tool', server_id='test', structured_output=True,
+        edges=['2']
     )
 
     input_schema = {
@@ -189,5 +198,6 @@ async def test_handler_tool_structured_output(mocker):
     sessions.workflow.servers = [WorkflowServer.model_create(id='test', url='https://testserver/mcp/')]
     sessions.get_session.return_value = session
 
-    res = await handler.handle_tool({'name': 'test'}, sessions=sessions, node=node)
-    assert res == {'name': 'test', 'foo': 'baz'}
+    res = [x async for x in handler.handle_tool({'name': 'test'}, sessions=sessions, node=node)]
+    assert len(res) == 1
+    assert res[0].data == {'name': 'test', 'foo': 'baz'}

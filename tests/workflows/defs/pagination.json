@@ -1,0 +1,54 @@
+{
+    "id": "pagination",
+    "data": {
+        "sum": 0,
+        "count": 17
+    },
+    "nodes": [
+        {
+            "id": "test_pagination_cursor",
+            "type": "tool",
+            "edges": [
+                "loop"
+            ],
+            "url": "https://test.mcp.jotsu.com/mcp"
+        },
+        {
+            "id": "loop",
+            "type": "loop",
+            "edges": [
+                "transform"
+            ],
+            "expr": "items",
+            "end_node_id": "switch"
+        },
+        {
+            "id": "transform",
+            "type": "transform",
+            "transforms": [
+                {
+                    "type": "set",
+                    "source": "sum + __each__.value + 1",
+                    "target": "sum"
+                }
+            ]
+        },
+        {
+            "id": "switch",
+            "type": "switch",
+            "edges": [
+                "test_pagination_cursor",
+                "result"
+            ],
+            "rules": [
+                {"type":  "truthy"},
+                {"type":  "falsy"}
+            ],
+            "expr": "cursor"
+        },
+        {
+            "id": "result",
+            "type": "result"
+        }
+    ]
+}

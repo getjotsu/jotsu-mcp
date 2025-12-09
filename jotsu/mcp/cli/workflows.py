@@ -7,13 +7,13 @@ import click
 import jsonc
 from dotenv import load_dotenv
 
-from jotsu.mcp.local import LocalMCPClient
-from jotsu.mcp.types import Workflow, slug
+from jotsu.mcp.local import LocalMCPClient, LocalCredentialsManager
+from jotsu.mcp.types import Workflow, slug, WorkflowResultNode, WorkflowMCPNode
 from jotsu.mcp.workflow.engine import WorkflowEngine
+from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 
 from .base import cli
 from . import utils
-from ..types.models import WorkflowResultNode
 
 load_dotenv()
 
@@ -40,13 +40,13 @@ async def init(path: str, id_: str, name: str, description: str, force: bool):
             sys.exit(0)
 
     workflow_id = id_ or slug()
-    flow = Workflow(id=workflow_id, name=name or workflow_id, description=description)
-    flow.nodes.append(WorkflowResultNode(id=slug()))
+    w = Workflow(id=workflow_id, name=name or workflow_id, description=description)
+    w.nodes.append(WorkflowResultNode(id=slug()))
 
     async with aiofiles.open(path, 'w') as fp:
-        await fp.write(flow.model_dump_json(indent=4))
+        await fp.write(w.model_dump_json(indent=4))
 
-    display_name = f'{flow.name} [{flow.id}]' if flow.id != flow.name else flow.id
+    display_name = f'{w.name} [{w.id}]' if w.id != w.name else w.id
     click.echo(f'Created workflow {display_name}: {path}')
 
 
@@ -70,8 +70,43 @@ async def run(path: str, no_format: bool, data: str):
     async with aiofiles.open(path) as f:
         content = await f.read()
 
-    flow = Workflow(**jsonc.loads(content))
+    w = Workflow(**jsonc.loads(content))
 
-    engine = WorkflowEngine(flow, client=LocalMCPClient())
-    async for msg in engine.run_workflow(flow.id, data):
+    engine = WorkflowEngine(w, client=LocalMCPClient())
+    async for msg in engine.run_workflow(w.id, data):
         click.echo(json.dumps(msg, indent=indent))
+
+
+@workflow.command()
+@click.argument('path')
+@click.option('--force', '-f', is_flag=True)
+@utils.async_cmd
+async def authenticate(path: str, force: bool):
+    """Authenticate a workflow without actually running it. """
+    credential_manager = LocalCredentialsManager(force=force)
+    client = LocalMCPClient(credentials_manager=credential_manager)
+
+    async with aiofiles.open(path) as f:
+        content = await f.read()
+
+    w = Workflow(**jsonc.loads(content))
+    sessions = WorkflowSessionManager(w, client=client)
+
+    async def _authenticate(name: str, session_id: str):
+        click.echo(f'  {name} ...', nl=False)
+        session = await sessions.get_session(session_id)
+        await session.load()
+        click.echo(f'\r  {name}: OK')
+
+    if w.servers:
+        click.echo(f'Servers [{len(w.servers)}]:')
+        for server in w.servers:
+            await _authenticate(server.name or server.id, server.id)
+
+    if w.nodes:
+        click.echo(f'Nodes [{len(w.nodes)}]:')
+        for node in w.nodes:
+            if isinstance(node, WorkflowMCPNode):
+                await _authenticate(node.name or node.id, node.id)
+
+    await sessions.aclose()

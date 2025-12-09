@@ -20,7 +20,8 @@ async def test_handler_bad_session(mocker):
     sessions.get_session.return_value = None
 
     with pytest.raises(JotsuException):
-        await handler.handle_tool({}, sessions=sessions, node=node)
+        async for _ in handler.handle_tool({}, sessions=sessions, node=node):
+            ...
 
 
 async def test_handler_switch():

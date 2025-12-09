@@ -23,17 +23,17 @@ async def test_sessions(mocker):
     assert await sessions.get_session(server.id) == mocked_session
     assert await sessions.get_session(server.id) == mocked_session  # cached version
 
-    await sessions.close()
+    await sessions.aclose()
 
 
 async def test_sessions_closed():
     server = WorkflowServer.model_create(url=pydantic.AnyHttpUrl('https://example.com/mcp/'))
     workflow = Workflow(id='test-workflow', name='Test', servers=[server])
     sessions = WorkflowSessionManager(workflow=workflow, client=LocalMCPClient())
-    await sessions.close()
+    await sessions.aclose()
     with pytest.raises(RuntimeError):
         await sessions.get_session(server)
-    await sessions.close()  # safely close again
+    await sessions.aclose()  # safely close again
 
 
 async def test_sessions_different_task(mocker):
@@ -52,7 +52,7 @@ async def test_sessions_different_task(mocker):
 
     mocker.patch('asyncio.current_task')
     with pytest.raises(RuntimeError):
-        await sessions.close()
+        await sessions.aclose()
 
 
 async def test_sessions_node(mocker):
@@ -71,7 +71,7 @@ async def test_sessions_node(mocker):
     assert sessions.workflow == workflow
     assert await sessions.get_session(node.id) == mocked_session
 
-    await sessions.close()
+    await sessions.aclose()
 
 
 async def test_sessions_not_found(mocker):

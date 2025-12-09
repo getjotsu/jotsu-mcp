@@ -210,7 +210,6 @@ class WorkflowEngine(FastMCP):
                 ).model_dump()
 
                 raise e
-
         else:
             # result and complete don't have handlers.
             yield WorkflowActionNode(
@@ -237,10 +236,7 @@ class WorkflowEngine(FastMCP):
         usage: list[WorkflowModelUsage] = []
         workflow_result_data: dict | None = None
 
-        workflow = await self.get_workflow(name)
-        if not workflow:
-            logger.error('Workflow not found: %s', name)
-            raise ValueError(f'Workflow not found: {name}')
+        workflow = await self._workflow(name)
 
         run_id = run_id if run_id else slug()
         workflow_name = f'{workflow.name} [{workflow.id}]' if workflow.name != workflow.id else workflow.name
@@ -336,7 +332,7 @@ class WorkflowEngine(FastMCP):
                     workflow_name, f'{duration:.4f}'
                 )
         finally:
-            await sessions.close()
+            await sessions.aclose()
 
     @staticmethod
     def _preprocess_workflow(workflow: Workflow):
@@ -346,6 +342,7 @@ class WorkflowEngine(FastMCP):
         for node in workflow.nodes:
             node.name = node.name or node.id
 
+    # Helper for get_workflow()
     def _get_workflow(self, name: str) -> Workflow | None:
         for workflow in self._workflows:
             if workflow.id == name:
@@ -354,6 +351,13 @@ class WorkflowEngine(FastMCP):
             if workflow.name == name:
                 return workflow
         return None
+
+    async def _workflow(self, name: str) -> Workflow:
+        workflow = await self.get_workflow(name)
+        if not workflow:
+            logger.error('Workflow not found: %s', name)
+            raise ValueError(f'Workflow not found: {name}')
+        return workflow
 
     @staticmethod
     def _get_tb(tb):
