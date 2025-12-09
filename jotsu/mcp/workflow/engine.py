@@ -99,6 +99,7 @@ class WorkflowActionNode(WorkflowAction):
     node: _WorkflowNodeRef
     data: WorkflowData
     duration: float
+    start_id: str | None = None
 
 
 # Keep old name too.
@@ -156,30 +157,41 @@ class WorkflowEngine(FastMCP):
     ):
         ref = _WorkflowNodeRef.from_node(node)
 
-        action_id = slug()
+        start_action_id = slug()
+        end_action_id = slug()
+
         handler = getattr(self._handler, f'handle_{node.type}', None)
         if handler:
             start = time.time()
             yield WorkflowActionNodeStart(
-                node=ref, data=data, run_id=run_id, timestamp=start
+                id=start_action_id, node=ref, data=data, run_id=run_id, timestamp=start
             ).model_dump()
 
             try:
-                kwargs = {'action_id': action_id, 'workflow': workflow, 'sessions': sessions, 'usage': usage}
-                async for handler_result in self._iterate_handler(node, handler, data, mocks=mocks, **kwargs):
-                    next_node = nodes[handler_result.edge]
-                    async for child_result in self._run_workflow_node(
-                            workflow, next_node, handler_result.data, nodes=nodes,
-                            sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
-                    ):
-                        yield child_result
-                        data = child_result['data'] if 'data' in child_result else data
+                complete_exception = None
+                try:
+                    kwargs = {'action_id': end_action_id, 'workflow': workflow, 'sessions': sessions, 'usage': usage}
+                    async for handler_result in self._iterate_handler(node, handler, data, mocks=mocks, **kwargs):
+                        next_node = nodes[handler_result.edge]
+                        async for child_result in self._run_workflow_node(
+                                workflow, next_node, handler_result.data, nodes=nodes,
+                                sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
+                        ):
+                            yield child_result
+                            data = child_result['data'] if 'data' in child_result else data
+
+                except _WorkflowCompleteException as e:
+                    # Ensures the end node is output.
+                    complete_exception = e
 
                 end = time.time()
                 yield WorkflowActionNode(
-                    id=action_id, node=ref, data=data, run_id=run_id,
-                    timestamp=end, duration=end - start
+                    id=end_action_id, node=ref, data=data, run_id=run_id,
+                    timestamp=end, duration=end - start, start_id=start_action_id
                 ).model_dump()
+
+                if complete_exception:
+                    raise complete_exception
 
                 end_node_id = getattr(node, 'end_node_id', None)
                 if end_node_id:
@@ -197,9 +209,8 @@ class WorkflowEngine(FastMCP):
 
                 # If there is only one exception in the group, return that instead.
                 if isinstance(e, ExceptionGroup):
-                    group = typing.cast(ExceptionGroup, e)
-                    if len(group.exceptions) == 1:
-                        e = group.exceptions[0]
+                    if len(e.exceptions) == 1:
+                        e = e.exceptions[0]
 
                 exc_type = type(e)
                 tb = e.__traceback__
@@ -213,7 +224,7 @@ class WorkflowEngine(FastMCP):
         else:
             # result and complete don't have handlers.
             yield WorkflowActionNode(
-                id=action_id, node=ref, data=data, run_id=run_id,
+                id=end_action_id, node=ref, data=data, run_id=run_id,
                 timestamp=time.time(), duration=0
             ).model_dump()
 
