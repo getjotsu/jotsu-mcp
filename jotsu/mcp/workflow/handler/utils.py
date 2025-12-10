@@ -41,11 +41,6 @@ def update_data_from_text(data: dict, text: str, *, node: WorkflowModelNode):
     data[member] = result
 
 
-def jsonata_value(data: dict, expr: str):
-    expr = jsonata.Jsonata(expr)
-    return expr.evaluate(data)
-
-
 def is_async_generator(handler) -> bool:
     # handle both function and bound method
     func = getattr(handler, '__func__', handler)
@@ -59,3 +54,12 @@ def is_result_or_complete_node(result: dict) -> bool:
             node_type = node.get('type')
             return node_type in ['result', 'complete']
     return False
+
+
+def jsonata_value(data: dict, expr: str):
+    expr = jsonata.Jsonata(expr)
+
+    # The Python implementation doesn't contain the Eval functions, including $parse.
+    expr.register_lambda('parse', lambda x: json.loads(x))
+
+    return expr.evaluate(data)

@@ -41,7 +41,7 @@ def pybars_compiler():  # pragma: no coverage
     return getattr(pybars_compiler, '_compiler')
 
 
-def pybars_render(source: str, data: any) -> str:
+def pybars_render(source: str, data: typing.Any) -> str:
     compiler = pybars_compiler()
     template = compiler.compile(source)
     return template(data)
