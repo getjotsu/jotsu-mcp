@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 import time
@@ -343,7 +344,15 @@ class WorkflowEngine(FastMCP):
                     workflow_name, f'{duration:.4f}'
                 )
         finally:
-            await sessions.aclose()
+            try:
+                # Put all cleanup here
+                await sessions.aclose()
+            except asyncio.CancelledError:
+                # Also normal during shutdown; don't log as an error
+                pass
+            except:  # noqa
+                # Downgrade to warning or debug if this only happens on shutdown
+                logger.warning('Error while closing MCPClient session', exc_info=True)
 
     @staticmethod
     def _preprocess_workflow(workflow: Workflow):
