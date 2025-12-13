@@ -81,7 +81,7 @@ class OpenAIMixin:
 
         # Extract structured output if JSON schema was used
         if node.use_json_schema or (node.use_json_schema is None and node.json_schema):
-            # ALWAYS use a json_schema in production.
+            # ALWAYS use_json_schema in production.
             for output in response.output:
                 if output.type == 'message':
                     for content in output.content:

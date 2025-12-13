@@ -78,7 +78,6 @@ class WorkflowActionEnd(WorkflowAction):
     action: typing.Literal['workflow-end'] = 'workflow-end'
     workflow: _WorkflowRef
     duration: float
-    usage: list[WorkflowModelUsage]
     result: dict | None = None
 
 
@@ -86,7 +85,6 @@ class WorkflowActionFailed(WorkflowAction):
     action: typing.Literal['workflow-failed'] = 'workflow-failed'
     workflow: _WorkflowRef
     duration: float
-    usage: list[WorkflowModelUsage]
 
 
 class WorkflowActionNodeStart(WorkflowAction):
@@ -101,6 +99,7 @@ class WorkflowActionNode(WorkflowAction):
     data: WorkflowData
     duration: float
     start_id: str | None = None
+    usage: list[WorkflowModelUsage]
 
 
 # Keep old name too.
@@ -113,6 +112,7 @@ class WorkflowActionNodeError(WorkflowAction):
     message: str
     exc_type: str
     traceback: typing.List[_WorkflowTracebackFrame]
+    usage: list[WorkflowModelUsage]
 
 
 class WorkflowActionDefault(WorkflowAction):
@@ -153,7 +153,7 @@ class WorkflowEngine(FastMCP):
 
     async def _run_workflow_node(
             self, workflow: Workflow, node: WorkflowNode, data: dict, *,
-            nodes: typing.Dict[str, WorkflowNode], sessions: WorkflowSessionManager, usage: list[WorkflowModelUsage],
+            nodes: typing.Dict[str, WorkflowNode], sessions: WorkflowSessionManager,
             run_id: str, mocks: typing.Dict[str, dict]
     ):
         ref = _WorkflowNodeRef.from_node(node)
@@ -168,15 +168,18 @@ class WorkflowEngine(FastMCP):
                 id=start_action_id, node=ref, data=data, run_id=run_id, timestamp=start
             ).model_dump()
 
+            usage: typing.List[WorkflowModelUsage] = []
             try:
                 complete_exception = None
                 try:
-                    kwargs = {'action_id': end_action_id, 'workflow': workflow, 'sessions': sessions, 'usage': usage}
-                    async for handler_result in self._iterate_handler(node, handler, data, mocks=mocks, **kwargs):
+                    async for handler_result in self._iterate_handler(
+                            node, handler, data,
+                            mocks=mocks, action_id=end_action_id, workflow=workflow, sessions=sessions, usage=usage,
+                    ):
                         next_node = nodes[handler_result.edge]
                         async for child_result in self._run_workflow_node(
                                 workflow, next_node, handler_result.data, nodes=nodes,
-                                sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
+                                sessions=sessions, run_id=run_id, mocks=mocks
                         ):
                             yield child_result
                             data = child_result['data'] if 'data' in child_result else data
@@ -188,8 +191,10 @@ class WorkflowEngine(FastMCP):
                 end = time.time()
                 yield WorkflowActionNode(
                     id=end_action_id, node=ref, data=data, run_id=run_id,
-                    timestamp=end, duration=end - start, start_id=start_action_id
+                    timestamp=end, duration=end - start, start_id=start_action_id,
+                    usage=usage
                 ).model_dump()
+                # FIXME: add usage here!
 
                 if complete_exception:
                     raise complete_exception
@@ -198,7 +203,7 @@ class WorkflowEngine(FastMCP):
                 if end_node_id:
                     async for child_result in self._run_workflow_node(
                             workflow, nodes[end_node_id], data, nodes=nodes,
-                            sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
+                            sessions=sessions, run_id=run_id, mocks=mocks
                     ):
                         yield child_result
                         data = child_result['data'] if 'data' in child_result else data
@@ -217,7 +222,7 @@ class WorkflowEngine(FastMCP):
                 tb = e.__traceback__
 
                 yield WorkflowActionNodeError(
-                    node=ref, message=str(e), run_id=run_id,
+                    node=ref, message=str(e), run_id=run_id, usage=usage,
                     exc_type=exc_type.__name__, traceback=list(self._get_tb(tb))
                 ).model_dump()
 
@@ -226,7 +231,7 @@ class WorkflowEngine(FastMCP):
             # result and complete don't have handlers.
             yield WorkflowActionNode(
                 id=end_action_id, node=ref, data=data, run_id=run_id,
-                timestamp=time.time(), duration=0
+                timestamp=time.time(), duration=0, usage=[]
             ).model_dump()
 
             if node.type == 'complete':
@@ -236,7 +241,7 @@ class WorkflowEngine(FastMCP):
                 next_node = nodes[node_id]
                 async for child_data in self._run_workflow_node(
                         workflow, next_node, data, nodes=nodes,
-                        sessions=sessions, usage=usage, run_id=run_id, mocks=mocks
+                        sessions=sessions, run_id=run_id, mocks=mocks
                 ):
                     yield child_data
 
@@ -245,7 +250,6 @@ class WorkflowEngine(FastMCP):
 
     async def run_workflow(self, name: str, data: dict = None, *, run_id: str = None):
         start = time.time()
-        usage: list[WorkflowModelUsage] = []
         workflow_result_data: dict | None = None
 
         workflow = await self._workflow(name)
@@ -276,7 +280,7 @@ class WorkflowEngine(FastMCP):
                 end = time.time()
                 duration = end - start
                 yield WorkflowActionFailed(
-                    workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
+                    workflow=ref, timestamp=end, duration=duration, run_id=run_id
                 ).model_dump()
                 logger.info(
                     "Workflow '%s' failed due to invalid schema in %s seconds.",
@@ -295,10 +299,7 @@ class WorkflowEngine(FastMCP):
             end = time.time()
             duration = end - start
 
-            yield WorkflowActionEnd(
-                workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
-            ).model_dump()
-
+            yield WorkflowActionEnd(workflow=ref, timestamp=end, duration=duration, run_id=run_id).model_dump()
             logger.info(
                 "Empty workflow '%s' completed successfully in %s seconds.",
                 workflow_name, f'{end - start:.4f}'
@@ -311,7 +312,7 @@ class WorkflowEngine(FastMCP):
             try:
                 async for result in self._run_workflow_node(
                         workflow, node, data=payload, nodes=nodes,
-                        sessions=sessions, usage=usage, run_id=run_id, mocks=mocks,
+                        sessions=sessions, run_id=run_id, mocks=mocks,
                 ):
                     # check for result
                     yield result
@@ -329,30 +330,33 @@ class WorkflowEngine(FastMCP):
             if success:
                 yield WorkflowActionEnd(
                     result=workflow_result_data, workflow=ref,
-                    timestamp=end, duration=duration, usage=usage, run_id=run_id
+                    timestamp=end, duration=duration, run_id=run_id
                 ).model_dump()
                 logger.info(
                     "Workflow '%s' completed successfully in %s seconds.",
                     workflow_name, f'{duration:.4f}'
                 )
             else:
-                yield WorkflowActionFailed(
-                    workflow=ref, timestamp=end, duration=duration, usage=usage, run_id=run_id
-                ).model_dump()
+                yield WorkflowActionFailed(workflow=ref, timestamp=end, duration=duration, run_id=run_id).model_dump()
                 logger.info(
                     "Workflow '%s' failed in %s seconds.",
                     workflow_name, f'{duration:.4f}'
                 )
         finally:
             try:
-                # Put all cleanup here
-                await sessions.aclose()
+                if not self.is_shutting_down() or sessions.is_owner():
+                    await sessions.aclose()
             except asyncio.CancelledError:
                 # Also normal during shutdown; don't log as an error
                 pass
             except:  # noqa
                 # Downgrade to warning or debug if this only happens on shutdown
                 logger.warning('Error while closing MCPClient session', exc_info=True)
+
+    # noinspection PyMethodMayBeStatic
+    def is_shutting_down(self):
+        """This function can be overridden to test for process exit and avoid noisy cleanup warnings."""
+        return False
 
     @staticmethod
     def _preprocess_workflow(workflow: Workflow):
@@ -387,9 +391,12 @@ class WorkflowEngine(FastMCP):
             )
 
     async def _iterate_handler(
-            self, node: WorkflowNode, method, data, *, mocks: typing.Dict[str, dict], **kwargs
+            self, node: WorkflowNode, method, data, *,
+            mocks: typing.Dict[str, dict], usage: typing.List[WorkflowModelUsage],
+            **kwargs
     ) -> typing.AsyncIterator[WorkflowHandlerResult]:
         # A handler returns either a simple dict or an async iterator of WorkflowHandlerResults.
+        # Any model usage is stored in the usages list.
         if node.id not in mocks:
             if is_async_generator(method):
                 # Test for a generator which returns an iterator...
@@ -397,7 +404,7 @@ class WorkflowEngine(FastMCP):
                     yield result
             else:
                 for node_id in node.edges:
-                    data = await method(data, node=node, **kwargs)
+                    data = await method(data, node=node, usage=usage, **kwargs)
                     yield WorkflowHandlerResult(edge=node_id, data=data)
         else:
             mock = mocks[node.id].copy()

@@ -69,15 +69,17 @@ class WorkflowSessionManager:
             self._sessions[server.id] = session
             return session
 
+    def is_owner(self):
+        """Is the current task the owning task"""
+        return not self._owner_task or self._owner_task is asyncio.current_task()
+
     async def aclose(self) -> None:
         """Close all sessions together in LIFO order (like an ExitStack)."""
         if self._closed:
             return
         self._closed = True
 
-        owner = self._owner_task
-        current = asyncio.current_task()
-        if owner is not None and owner is not current:
+        if not self.is_owner():
             raise RuntimeError('close() must be called from the same task that created sessions')
 
         # Prevent reuse while closing

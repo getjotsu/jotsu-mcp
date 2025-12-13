@@ -1,3 +1,5 @@
+import asyncio
+
 import pydantic
 import pytest
 
@@ -5,7 +7,7 @@ from jotsu.mcp.types import (
     Workflow, WorkflowServer,
     WorkflowNode,
     WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode,
-    WorkflowEvent
+    WorkflowEvent, WorkflowResultNode
 )
 from jotsu.mcp.workflow import WorkflowEngine
 from jotsu.mcp.workflow.handler import WorkflowHandler
@@ -218,3 +220,33 @@ async def test_engine_mock_iterator():
     node = trace[3]
     assert node['action'] == 'node'
     assert node['data'] == {'baz': '123'}
+
+
+async def test_engine_workflow_close_cancelled(mocker):
+    aclose = mocker.patch('jotsu.mcp.workflow.sessions.WorkflowSessionManager.aclose')
+    aclose.side_effect = asyncio.CancelledError
+
+    workflow = Workflow(id='test-workflow', name='Test')
+    workflow.nodes.append(WorkflowResultNode.model_create())
+
+    engine = WorkflowEngine([workflow])
+
+    trace = [x async for x in engine.run_workflow('test-workflow', data={'foo': 'bar'})]
+    assert len(trace) == 3   # workflow start/end
+    aclose.assert_called_once()
+
+
+async def test_engine_workflow_close_error(mocker):
+    logger_warning = mocker.patch('jotsu.mcp.workflow.engine.logger.warning')
+    aclose = mocker.patch('jotsu.mcp.workflow.sessions.WorkflowSessionManager.aclose')
+    aclose.side_effect = Exception
+
+    workflow = Workflow(id='test-workflow', name='Test')
+    workflow.nodes.append(WorkflowResultNode.model_create())
+
+    engine = WorkflowEngine([workflow])
+
+    trace = [x async for x in engine.run_workflow('test-workflow', data={'foo': 'bar'})]
+    assert len(trace) == 3   # workflow start/end
+    aclose.assert_called_once()
+    logger_warning.assert_called_once()
