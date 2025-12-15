@@ -36,8 +36,9 @@ Add the following server entry:
     "url": "https://hello.mcp.jotsu.com/mcp/"
 }
 ```
-
+NOTE: IDs may only contain lowercase letters, numbers, `:`, `_`, or `-`.
 NOTE: don't forget the path `/mcp/` on the URL.
+
 
 This server is a publicly available MCP server (with no authentication) that has a couple of resources and a tool.
 (The code is available [here](https://github.com/getjotsu/mcp-servers/tree/main/hello)).
