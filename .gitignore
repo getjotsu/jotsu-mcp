@@ -13,6 +13,7 @@ wheels/
 
 # IDE
 .idea/
+.DS_Store
 
 # Test data in the TLD
 /*.json
