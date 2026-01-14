@@ -1,4 +1,6 @@
 import datetime
+import zoneinfo
+
 import typing
 from types import SimpleNamespace
 
@@ -23,7 +25,9 @@ def asteval(data: dict, expr: str, *, node):
 
     aeval.symtable['datetime'] = SimpleNamespace(
         datetime=datetime.datetime,
-        timedelta=datetime.timedelta
+        timedelta=datetime.timedelta,
+        timezone=datetime.timezone,
+        zoneinfo=zoneinfo
     )
 
     aeval.symtable.pop('print', None)
