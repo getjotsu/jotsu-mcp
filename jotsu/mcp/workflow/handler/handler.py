@@ -7,6 +7,7 @@ from jotsu.mcp.client.client import MCPClientSession
 
 from jotsu.mcp.workflow.sessions import WorkflowSessionManager
 from .loop import LoopMixin
+from .script import ScriptMixin
 from .switch import SwitchMixin
 
 from .types import WorkflowHandlerResult
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 class WorkflowHandler(
     AnthropicMixin, OpenAIMixin, CloudflareMixin,
     ToolMixin, ResourceMixin, PromptMixin,
-    FunctionMixin, PickMixin, TransformMixin,
+    FunctionMixin, ScriptMixin, PickMixin, TransformMixin,
     LoopMixin, SwitchMixin
 ):
     def __init__(self, engine: 'WorkflowEngine'):

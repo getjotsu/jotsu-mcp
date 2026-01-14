@@ -1,9 +1,11 @@
 import datetime
+import json
 import zoneinfo
 
 import typing
 from types import SimpleNamespace
 
+import quickjs
 from asteval import Interpreter
 
 from jotsu.mcp.types import JotsuException
@@ -36,6 +38,27 @@ def asteval(data: dict, expr: str, *, node):
     if aeval.error:
         raise JotsuException('\n'.join([e.msg for e in aeval.error]))
     return result
+
+
+def script(data, expr: str, *, node):
+    context = quickjs.Context()
+    context.eval(f"""
+    const __data = JSON.parse({json.dumps(json.dumps(data))});
+    const __node = JSON.parse({json.dumps(node.model_dump_json())});
+""")
+    wrapper = f"""
+        (function () {{
+            "use strict";
+            const data = __data;
+            function __user() {{
+                {expr}
+            }}
+            const result = __user();
+            return result ? JSON.stringify(result) : JSON.stringify(data);
+        }})()
+    """
+    result = context.eval(wrapper)
+    return json.loads(result) if result else data
 
 
 def pybars_compiler():  # pragma: no coverage

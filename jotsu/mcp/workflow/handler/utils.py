@@ -1,5 +1,8 @@
 import inspect
 import json
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
 import jsonata
 
 from jotsu.mcp.types.models import WorkflowModelNode
@@ -55,11 +58,45 @@ def is_result_or_complete_node(result: dict) -> bool:
             return node_type in ['result', 'complete']
     return False
 
+###
+
+
+def parse_utc(value: str) -> str:
+    # Normalize Z → +00:00 for fromisoformat
+    dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+
+    # JSONata works best with JSON-serializable values
+    return dt.isoformat()
+
+
+def to_tz(value: str, tz_name: str) -> str:
+    dt = datetime.fromisoformat(value)
+
+    if dt.tzinfo is None:
+        raise ValueError('datetime must be timezone-aware')
+
+    tz = ZoneInfo(tz_name)
+    return dt.astimezone(tz).isoformat()
+
+
+def now_utc() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
 
 def jsonata_value(data: dict, expr: str):
     expr = jsonata.Jsonata(expr)
 
     # The Python implementation doesn't contain the Eval functions, including $parse.
     expr.register_lambda('parse', lambda x: json.loads(x))
+
+    # Datetime helpers
+    expr.register_lambda('parse_utc', lambda x: parse_utc(x))
+    expr.register_lambda('to_tz', lambda x, y: to_tz(x, y))
+    expr.register_lambda('now_utc', lambda: now_utc())
 
     return expr.evaluate(data)

@@ -141,6 +141,13 @@ class WorkflowFunctionNode(WorkflowRulesNode):
     function: str
 
 
+class WorkflowScriptNode(WorkflowRulesNode):
+    """ Run JavaScript on the data.
+    """
+    type: typing.Literal['script'] = 'script'
+    script: str
+
+
 class WorkflowPickNode(WorkflowNode):
     """ Prune the data down to make it more readable.
     """
@@ -219,7 +226,7 @@ class WorkflowServerFull(WorkflowServer):
 NodeUnion = typing.Annotated[
     typing.Union[
         WorkflowToolNode, WorkflowResourceNode, WorkflowPromptNode,
-        WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode, WorkflowTransformNode,
+        WorkflowSwitchNode, WorkflowLoopNode, WorkflowFunctionNode, WorkflowScriptNode, WorkflowTransformNode,
         WorkflowAnthropicNode, WorkflowOpenAINode, WorkflowCloudflareNode, WorkflowNode
     ],
     'type'
